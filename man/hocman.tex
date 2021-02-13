@@ -1,0 +1,306 @@
+
+\magnification\magstep1
+\input fixpdfmag % for pdftex
+
+\hsize 15 true cm \advance\hoffset 5 true mm
+\vsize 24 true cm \advance\voffset 1 true mm
+
+\parskip=1pt plus 1pt
+\parindent=1pc
+
+\font\tfone=cmr17
+\font\tftwo=cmr12
+\font\tenrm=cmr10
+\font\eightrm=cmr8
+\font\eighttt=cmtt8
+
+\def\hoc{{\tenrm H\eightrm OC}}%
+\catcode`\|=\active\let|=\vert% alternatives in grammars
+\def\section #1\par{\vskip 0pt plus .1\vsize\penalty-250
+  \vskip 0pt plus -.1\vsize \vskip 18pt plus 6pt minus 4pt
+  \vskip\parskip \leftline{\bf #1}%
+  \nobreak\medskip\noindent\ignorespaces}%
+\def\boxit#1{\vbox{\hrule\hbox{\vrule\kern6pt
+  \vbox{\kern6pt#1\kern3pt}\kern3pt\vrule}\hrule}}%
+\def\0{\phantom{0}}%
+\def\\{\char"5C}% backslash in tt font
+
+\def\begincode{\begingroup\tt\obeylines\obeyspaces\frenchspacing
+  \catcode`\$=12\catcode`\{=12\catcode`\}=12\catcode`\^=12\relax}%
+\def\endcode{\par\endgroup}
+
+
+\topglue 0pc\noindent
+This is {\bf Appendix~2: Hoc Manual} in
+{\sl The UNIX Programming Environment}.
+\vskip 2pc plus 1pc
+
+\centerline{\tfone H\tftwo OC}
+\medskip
+\centerline{\tftwo An Interactive Language For Floating Point Arithmetic}
+\bigskip
+\centerline{\it Brian Kernighan}
+\centerline{\it Rob Pike}
+
+\vskip 2pc plus 6pt minus 4pt
+
+\begingroup\narrower\narrower
+\noindent{\bf Abstract.\enspace}\ignorespaces
+Hoc is a simple programmable interpreter for floating point expressions.
+It has C-style control flow, function definition and the usual
+numerical built-in functions such as cosine and logarithm.\par
+\endgroup
+
+\section 1. Expressions
+
+\hoc\ is an expression language, much like~C: although there are several
+control-flow statements, most statements such as assignments are
+expressions whose value is disregarded. For example, the assignment
+operator {\tt=} assigns the value of its right operand to its left
+operand, and yields the value, so multiple assignments work.
+The expression grammar is:
+$$
+\vbox{\halign{\tabskip1em\it#\hfil&$#$\hfil&\it#\hfil\cr
+  expr:& &number\cr
+      &|&variable\cr
+      &|&{\tt(} expr {\tt)}\cr
+      &|&expr binop expr\cr
+      &|&unop expr\cr
+      &|&function {\tt(} arguments {\tt)}\cr}}
+$$
+Numbers are floating point. The input format is that recognized
+by {\tt scanf}(3): digits, decimal point, digits, {\tt e} or {\tt E},
+signed exponent. At least one digit or a decimal point must be
+present; the other components are optional.
+
+Variable names are formed from a letter followed by a string of
+letters and numbers. {\it binop\/} refers to binary operators such
+as addition or logical comparison; {\it unop\/} refers to the two
+negation operators, {\tt!} (logical negation, `not') and {\tt-}
+(arithmetic negation, sign change). Table~1 lists the operators.
+$$
+\boxit{\vbox{\halign{\tabskip1em\tt\hfil#\hfil&#\hfil\cr
+  \omit\span\hfil{\bf Table~1:} Operators, in decreasing order of precedence\cr
+  \noalign{\smallskip}
+  \char"5E&  exponentiation, right associative\cr
+  !  -&      (unary) logical and arithmetic negation\cr
+  * \ /&     multiplication, division\cr
+  + \ -&     addition, subtraction\cr
+  > \ >=&    relational operators: greater, greater or equal,\cr
+  < \ <=&    \quad less, less or equal,\cr
+  == !=&     \quad equal, not equal (all same precedence)\cr
+  \&\&&      logical {\eightrm AND} (both operands always evaluated)\cr
+  \char"7C\char"7C & logical {\eightrm OR} (both operands always evaluated)\cr
+  =&         assignment, right associative\cr}}}
+$$
+
+Functions, as described later, may be defined by the user.
+Function arguments are expressions separated by commas.
+There are also a number of built-in functions, all of which
+take a single argument, described in Table~2.
+$$
+\boxit{\vbox{\halign{\tabskip1em\tt#\hfil&#\hfil\cr
+  \omit\span\hfil{\bf Table~2:} Built-in Functions\cr
+  \noalign{\smallskip}
+  abs($x$)&    $|x|$, absolute value of $x$\cr
+  atan($x$)&   arc tangent (in radians) of $x$\cr
+  cos($x$)&    $\cos x$, cosine of $x$, $x$ in radians\cr
+  exp($x$)&    $e^x$, exponential of $x$\cr
+  int($x$)&    integer part of $x$, truncated towards zero\cr
+  log($x$)&    $\log x$, logarithm base $e$ of $x$\cr
+  log10($x$)&  $\log_{10}x$, logarithm base 10 of $x$\cr
+  sin($x$)&    $\sin x$, sine of $x$, $x$ in radians\cr
+  sqrt($x$)&   $\sqrt x$, $x^{1/2}$, square root of $x$\cr}}}
+$$
+
+Logical expressions have value $1.0$ (true) and $0.0$ (false).
+As in~C, any non-zero value is taken to be true. As is always
+the case with floating point numbers, equality comparisons are
+inherently suspect.
+
+\hoc\ also has a few built-in constants, shown in Table~3.
+$$
+\boxit{\vbox{\halign{\tabskip1em\tt#\hfil&#\hfil&#\hfil\cr
+  \omit\span\span\hfil{\bf Table~3:} Built-in Constants\hfil\cr
+  \noalign{\smallskip}
+  DEG&     57.29577951308232087680& $180/\pi$, degrees per radian\cr
+  E&      \02.71828182845904523536& $e$, base of natural logarithms\cr
+  GAMMA&  \00.57721566490153286060& $\gamma$, Euler-Mascheroni constant\cr
+  PHI&    \01.61803398874989484820& $(\sqrt 5+1)/2$, the golden ratio\cr
+  PI&     \03.14159265358979323846& $\pi$, circular transcendental number\cr}}}
+$$
+
+\section 2. Statements and Control Flow
+
+\hoc\ statements have the following grammer:
+$$
+\vbox{\halign{\tabskip1em\it#\hfil&$#$\hfil&\it#\hfil\cr
+  stmt:& &expr\cr
+      &|&variable {\tt=} expr\cr
+      &|&procedure {\tt(} arglist {\tt)}\cr
+      &|&while {\tt(} expr {\tt)} stmt\cr
+      &|&if {\tt(} expr {\tt)} stmt\cr
+      &|&if {\tt(} expr {\tt)} stmt {\tt else} stmt\cr
+      &|&{\tt\char"7B} stmtlist {\tt\char"7D}\cr
+      &|&{\tt print} expr-list\cr
+      &|&{\tt return} optional-expr\cr
+  \noalign{\medskip}
+  stmtlist:& & {\rm (nothing)}\cr
+      &|& stmtlist stmt\cr}}
+$$
+An assignment is parsed by default as a statement rather than
+as an expression, so assignments typed interactively do not print
+their value.
+
+Note that semicolons are not special to \hoc: statements are
+terminated by newlines. This causes some peculiar behavior.
+The following are legal {\tt if\/} statements:
+
+\medskip
+\begincode
+if (x < 0) print(y) else print (z)
+\medskip
+if (x < 0) {
+~      print(y)
+} else {
+~      print(z)
+}
+\endcode
+\medskip
+
+\noindent
+In the second example, the braces are mandatory: the newline
+after the {\tt if} would terminate the statement and produce
+a syntax error were the brace omitted.
+
+The syntax and semantics of \hoc\ control flow facilities are
+basically the same as in~C. The {\tt while} and {\tt if}
+statements are just as in~C, except there are no {\tt break}
+or {\tt continue} statements.
+
+\section 3. Input and Output: {\tt read} and {\tt print}
+
+The input function {\tt read}, like the other built-ins, takes
+a single argument. Unlike the built-ins, though, the argument
+is not an expression: it is the name of a variable. The next
+number (as defined above) is read from the standard input and
+assigned to the named variable. The return of {\tt read} is
+1 (true) if a value was read, and 0 (false) if {\tt read}
+encountered end of file or an error.
+
+Output is generated with the {\tt print} statement.
+The arguments to {\tt print} are a comma-separated list
+of expressions and strings in double quotes, as in~C.
+Newlines must be supplied; they are never provided
+automatically by {\tt print}.
+
+Note that {\tt read} is a special built-in function, and
+therefore takes a single parenthesized argument, while
+{\tt print} is a statement that takes a comma-separated,
+unparenthesized list:
+
+\medskip
+\begincode
+while (read(x)) {
+~       print "value is ", x, "\\n"
+}
+\endcode
+
+\section 4. Functions and Procedures
+
+Functions and procedures are distinct in \hoc, although they
+are defined by the same mechanism. This distinction is simply
+for run-time error checking: it is an error for a procedure
+to return a value, and for a function {\it not\/} to return one.
+
+The definition syntax is:
+$$
+\vbox{\halign{\tabskip1em\llap{#}&\quad\it#\hfil\cr
+ function:&  {\tt func} name {\tt()} stmt\cr
+ procedure:& {\tt proc} name {\tt()} stmt\cr}}
+$$
+{\it name\/} may be the name of any variable---built-in functions
+are excluded. The definition, up to the opening brace or statement,
+must be on one line, as with the {\tt if} statement above.
+
+Unlike~C, the body of a function or procedure may be any statement,
+not necessarily a compound (brace-enclosed) statement. Since
+semicolons have no meaning in \hoc, a null procedure body is formed
+by an empty pair of braces.
+
+Functions and procedures may take arguments, separated by commas,
+when invoked. Arguments are referred to as in the shell: {\tt\$3}
+refers to the third (1-indexed) argument. They are passed by value
+and within functions are semantically equivalent to variables.
+It is an error to refer to an argument numbered greater than the
+number of arguments passed to the routine. The error checking is
+done dynamically, however, so a routine may have variable numbers
+of arguments if initial arguments affect the number of arguments
+to be referenced (as in C's {\tt printf}).
+
+Functions and procedures may recurse, but the stack has limited
+depth (about a hundred calls). The following shows a \hoc\ definition
+of Ackermann's function:
+
+\medskip
+\begincode
+$ hoc
+func ack() {
+~       if ($1 == 0) return $2+1
+~       if ($2 == 0) return ack($1-1, 1)
+~       return ack($1-1, ack($1, $2-1))
+}
+ack(3, 2)
+~       29
+ack(3, 3)
+~       61
+ack(3, 4)
+hoc: stack too deep near line 8
+\endcode
+
+\section 5. Examples
+
+Stirling's formula:\quad\smash{$\displaystyle
+n!\sim\sqrt{2n\pi}\left(n\over e\right)^n\left(1+{1\over12n}\right)$}
+
+\medskip
+\begincode
+$ hoc
+func stirl() {
+~   return sqrt(2*$1*PI) * ($1/E)^$1 * (1 + 1/(12*$1))
+}
+stirl(10)
+~       3628684.7
+stirl(20)
+~       2.4328818e+18
+\endcode
+\medskip
+\noindent
+Ratio of factorial to Stirling approximation:
+\medskip
+\begincode
+func fac() if ($1 <= 0) return 1 else return $1 * fac($1-1)
+i = 9
+while ((i = i+1) <= 20) {
+~       print i, "  ", fac(i)/stirl(i), "\\n"
+}
+\endcode
+\medskip
+\line{(Expected output to the right.)\hfil
+\smash{\vbox{\eighttt\baselineskip 9pt
+\halign{\tabskip1em#\hfil&#\hfil\cr
+10& 1.0000318\cr
+11& 1.0000265\cr
+12& 1.0000224\cr
+13& 1.0000192\cr
+\noalign{\vskip20pt}
+14& 1.0000166\cr
+15& 1.0000146\cr
+16& 1.0000128\cr
+17& 1.0000114\cr
+18& 1.0000102\cr
+19& 1.0000092\cr
+20& 1.0000083\cr}}}}
+
+\bye
+
