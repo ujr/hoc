@@ -1,0 +1,604 @@
+
+\magnification\magstep1
+\input fixpdfmag % for pdftex
+\input epsf % for including *.mps figures
+\input fonts % font size switching
+
+\hsize 15 true cm \advance\hoffset 5 true mm
+\vsize 24 true cm \advance\voffset 1 true mm
+
+\parskip=1pt plus 1pt
+\parindent=2pc
+
+\font\tfone=cmssbx12 scaled\magstep2
+\font\tftwo=cmss12 scaled\magstephalf
+\font\headingfont=cmssbx12
+\font\sans=cmss10
+\font\sc=cmr9 % small caps (relative to cmr10)
+
+\def\section #1\par{\vskip 0pt plus .1\vsize\penalty-250
+  \vskip 0pt plus -.1\vsize \vskip 24pt plus 6pt minus 4pt
+  \vskip\parskip \leftline{\headingfont #1}%
+  \nobreak\medskip\noindent\ignorespaces}
+
+\def\subsect #1.{\bigbreak\noindent{\bf #1.\enspace}\ignorespaces}
+\def\exercise #1.{\bigbreak\begingroup\ninepoint
+  \noindent{\bf Exercise #1.\enspace}\ignorespaces}
+\def\endexercise{\unskip\kern.8ex$\sqcup\mkern-12mu\sqcap$\par\endgroup}
+
+\def\begincode{\begingroup\tt
+  \obeylines\obeyspaces\frenchspacing\spaceskip=\ttglue
+  \catcode`\$=12\catcode`\{=12\catcode`\}=12\catcode`\&=12
+  \catcode`\^=12\catcode`\#=12\catcode`\%=12\relax}%
+\def\endcode{\par\endgroup}
+
+\def\\{\char"5C}% backslash in cmtt font
+\def\ocb{\char"7B}% opening curly brace in cmtt
+\def\ccb{\char"7D}% closing curly brace in cmtt
+
+
+
+\topglue 0pc\noindent
+Excerpt from {\sl The UNIX Programming Environment}
+by Brian W.~Kernighan and Rob Pike,
+Prentice-Hall Software Series, 1984.
+Copyright 1984 by Bell Telephone Laboratories, Incorporated.
+Minimally edited to conform to {\sc ANSI}~C.
+\vskip 4pc plus 1pc
+
+\centerline{\tftwo Chapter 8}
+\bigskip
+\centerline{\tfone PROGRAM DEVELOPMENT}
+\medskip
+\centerline{\tftwo in the Unix Programming Environment}
+\vskip 2pc plus 1pc
+
+\noindent
+The {\sc UNIX} system was originally meant as a program development
+environment. In this chapter we'll talk about some of the tools that
+are particularly suited for developing programs. Our vehicle is a
+substantial program, an interpreter for a programming language
+comparable in power to {\sc BASIC}. We chose to implement a language
+because it's representative of problems encountered in large
+programs. Furthermore, many programs can profitably be viewed as
+languages that convert a systematic input into a sequence of actions
+and outputs, so we want to illustrate the language development tools.
+
+In this chapter, we will cover specific lessons about
+\item{--} {\tt yacc}, a parser generator, a program that generates
+a parser from a grammatical description of a language;
+\item{--} {\tt make}, a program for specifying and controlling the
+process by which a complicated program is compiled;
+\item{--} {\tt lex}, a program analogous to {\tt yacc}, for making
+ lexical analyzers.
+\par\noindent
+We also want to convey some notions of how to go about such a
+project---the importance of starting with something small and letting
+it grow; language evolution; and the use of tools.
+
+We will describe the implementation of the language in six stages,
+each of which would be useful even if the development went no further.
+These stages closely parallel the way that we actually wrote the
+program.
+
+\smallskip\item{(1)}
+A four-function calculator, providing {\tt + - * /} and parentheses,
+that operates on floating point numbers. One expression is typed on
+each line; its value is printed immediately.
+
+\smallskip\item{(2)}
+Variables with names {\tt a} through {\tt z}. This version also has
+unary minus and some defenses against errors.
+
+\smallskip\item{(3)}
+Arbitrarily-long variable names, built-in functions for {\tt sin},
+{\tt exp}, etc., useful constants like $\pi$ (spelled {\tt PI}
+because of typographic limitations), and an exponentiation operator.
+
+\smallskip\item{(4)}
+A change in internals: code is generated for each statement and
+subsequently interpreted, rather than being evaluated on the fly.
+No new features are added, but it leads to~(5).
+
+\smallskip\item{(5)}
+Control flow: {\tt if}-{\tt else} and {\tt while}, statement
+grouping with {\tt\ocb} and {\tt\ccb}, and relational operators
+like {\tt>}, {\tt<=}, etc.
+
+\smallskip\item{(6)}
+Recursive functions and procedures, with arguments. We also added
+statements for input and for output of strings as well as numbers.
+
+\smallskip\noindent
+The resulting language is described in Chapter~9, where it serves
+as the main example in our presentation of the {\sc UNIX} document
+preparation software. Appendix~2 is the reference manual.
+
+This is a very long chapter, because there's a lot of detail involved
+in getting a non-trivial program written correctly, let alone presented.
+We are assuming that you understand~C, and that you have a copy of the
+{\sl Unix Programmer's Manual,} Volume~2, close at hand, since we
+simply don't have space to explain every nuance. Hang in, and be
+prepared to read the chapter a couple of times. We have also included
+all of the code for the final version in Appendix~3, so you can see
+more easily how the pieces fit together.
+
+By the way, we wasted a lot of time debating names for this language
+but never came up with anything satisfactory. We settled on {\tt hoc},
+which stands for ``high-order calculator.'' The versions are thus
+{\tt hoc1}, {\tt hoc2}, etc.
+
+\section Stage 1: A four-function calculator
+
+This section describes the implementation of {\tt hoc1}, a program
+that provides about the same capabilities as a minimal pocket
+calculator. It has only four
+functions: {\tt+}, {\tt-}, {\tt*}, and {\tt/}, but it does have
+parentheses that can be nested arbirarily deeply, which few pocket
+calculators provide. If you type an expression followed by
+{\sc RETURN}, the anwer will be printed on the next line:
+
+\medskip
+\begincode
+$ hoc1
+4*3*2
+~       24
+(1+2) * (3+4)
+~       21
+1/2
+~       0.5
+355/113
+~       3.1415929
+-3-4
+hoc1: syntax error near line 4\qquad\it It doesn't have unary minus yet
+\tt$
+\endcode
+\medskip
+
+\subsect Grammars.
+Ever since Backus-Naur Form was developed for Algol, languages have
+been described by formal grammars. The grammar for {\tt hoc1} is small
+and simple in its abstract representation:
+
+\medskip
+\indent\indent\vbox{\halign{\tabskip1em\tt#\hfil&\tt#\hfil\cr
+ list:& expr \\n\cr
+      & list expr \\n\cr
+ expr:& NUMBER\cr
+      & expr + expr\cr
+      & expr - expr\cr
+      & expr * expr\cr
+      & expr / expr\cr
+      & ( expr )\cr}}
+\medskip
+\noindent
+In other words, a {\tt list} is a sequence of expressions, each
+followed by a newline. An expression is a number, or a pair of
+expressions joined by an operator, or a pharenthesized expression.
+
+This is not complete. Among other things, it does not specify
+the normal precedence and associativity of the operators, nor
+does it attach a meaning to any construct. And although {\tt list}
+is defined in terms of {\tt expr}, and {\tt expr} is defined in
+terms of {\tt NUMBER}, {\tt NUMBER} itself is nowhere defined.
+These details have to be filled in to go from a sketch of the
+language to a working program.
+
+\subsect Overview of yacc.
+{\tt yacc} is a {\it parser generator},\footnote{$\dag$}{{\tt yacc}
+stands for ``yet another compiler-compiler,'' a comment by its
+creator, Steve Johnson, on the number of such programs extant
+at the time it was being developed (around 1972). {\tt yacc}
+is one of a handful that have flourished.} that is, a program
+for converting a grammatical specification of a language like
+the one above into a parser that will parse statements in the
+language. {\tt yacc} provides a way to associate meanings with
+the components of the grammar in such a way that as the parsing
+takes place, the meaning can be ``evaluated'' as well. The stages
+in using {\tt yacc} are the following.
+
+First, a grammar is written, like the one above, but more precise.
+This specifies the syntax of the language. {\tt yacc} can be used
+at this stage to warn of errors and ambiguities in the grammar.
+
+Second, each rule or {\it production\/} of the grammar can be
+augmented with an {\it action}---a statement of what to do
+when an instance of that grammatical form is found in a program
+being parsed. The ``what to do'' part is written in~C, with
+conventions for connecting the grammar to the C~code.
+This defines the semantics of the language.
+
+Third, a {\it lexical scanner\/} is needed, which will read
+the input being parsed and break it up into meaningful chunks
+for the parser. A {\tt NUMBER} is an example of a lexical
+chunk that is several characters long; single-character operators
+like {\tt+} and {\tt*} are also chunks. A lexical chunk is called
+a {\it token}.
+
+Finally, a controlling routine is needed, to call the parser
+that {\tt yacc} built.
+
+{\tt yacc} proceses the grammar and the semantic actions into
+a parsing function, named {\tt yyparse}, and writes it out as
+a file of C~code. If {\tt yacc} finds no errors, the parser,
+the lexical analyzer, and the control routines can be compiled,
+perhaps linked with other C~routines, and executed. The operation
+of this program is to call repeatedly upon the lexical analyzer
+for tokens, recognize the grammatical (syntactic) structure in the
+input, and perform the semantic actions as each grammatical rule
+is recognized. The entry to the lexical analyzer must be named
+{\tt yylex}, since that is the function that {\tt yyparse} calls
+each time it wants another token. (All names used by {\tt yacc}
+start with~y.)
+
+To be somewhat more precise, the input to {\tt yacc} takes
+this form:
+
+\medskip
+\begincode
+%{
+\it C statements like \tt#include\it, declarations, etc. This section is optional\tt
+%}
+\begingroup\it yacc declarations: lexical tokens, grammar variables,
+\quad precedence and associativity information\endgroup
+%%
+\begingroup\it grammar rules and actions\endgroup
+%%
+\begingroup\it more C statements (optional):\endgroup
+main() { ...; yyparse(); ... }
+yylex() { ... }
+...
+\endcode
+\medskip
+
+\noindent
+This is processed by {\tt yacc} and the result is written into
+a file called {\tt y.tab.c}, whose layout is like this:
+
+\medskip
+\begingroup
+\obeylines
+{\it C statements from between {\tt\%\ocb} and {\tt\%\ccb}, if any}
+{\it C statements from after second {\tt\%\%}, if any:}
+{\tt main() \ocb\ ...; yyparse(); ... \ccb}
+{\tt yylex() \ocb\ ... \ccb}
+...
+{\tt yyparse() \ocb\ \it parser, which calls \tt yylex() \ccb}
+\endgroup
+\medskip
+
+It is typical of the {\sc UNIX} approach that {\tt yacc} produces
+C instead of a compiled object ({\tt.o}) file. This is the most
+flexible arrangement---the generated code is portable and amenable
+to other processing whenever someone has a good idea.
+
+{\tt yacc} itself is a powerful tool. It takes some effort to learn,
+but the effort is repaid many times over. {\tt yacc}-generated parsers
+are small, efficient, and correct (though the semantic actions are
+your own responsibility); many nasty parsing problems are taken
+care of automatically. Language-recognizing programs are easy
+to build, and (probably more important) can be modified repeatedly
+as the language definition evolves.
+
+\subsect Stage 1 program.
+The source code for {\tt hoc1} consists of a grammar with actions,
+a lexical routine {\tt yylex}, and a {\tt main}, all in one file
+{\tt hoc.y}. ({\tt yacc} filenames traditionally end in {\tt.y},
+but this convention is not enforced by {\tt yacc} itself, unlike
+{\tt cc} with {\tt.c} files) The grammar part is the first half of
+{\tt hoc.y}:
+
+\medskip
+\begincode
+%{
+#include <stdio.h>      \it includes needed for code later on\tt
+#include <ctype.h>
+#define YYSTYPE double   /* data type of yacc stack */
+%}
+\smallbreak
+%token  NUMBER
+%left   '+' '-'   /* left associative, same precedence */
+%left   '*' '/'   /* left associative, higher precedence */
+\smallbreak
+%%
+list:     /* nothing */
+~       | list '\\n'
+~       | list expr '\\n'  { printf("\\t%.8g\\n", $2); }
+~       ;
+expr:     NUMBER          { $$ = $1; }
+~       | expr '+' expr   { $$ = $1 + $3; }
+~       | expr '-' expr   { $$ = $1 - $3; }
+~       | expr '*' expr   { $$ = $1 * $3; }
+~       | expr '/' expr   { $$ = $1 / $3; }
+~       | '(' expr ')'    { $$ = $2; }
+~       ;
+%%
+~       /* end of grammar */
+...
+\endcode
+\medskip
+
+There's a lot of new information packed into these few lines.
+We are not going to explain all of it, and certainly not how
+the parser works---for that, you will have to read the {\tt yacc}
+manual.
+
+Alternate rules are separated by `{\tt|}'. Any grammar rule can
+have an associated action, which will be performed when an instance
+of that rule is recognized in the input. An action is a sequence
+of C statements enclosed in braces {\tt\ocb} and {\tt\ccb}.
+Within an action, {\tt\$\it n\/} (that is, {\tt\$1}, {\tt\$2}, etc.)
+refers to the value returned by the $n$th component of the rule,
+and {\tt\$\$} is the value to be returned as the value of the
+whole rule. So for example, in the rule
+\smallskip
+\begincode
+expr:  NUMBER  { $$ = $1; }
+\endcode
+\smallskip\noindent
+{\tt\$1} is the value returned by recognizing {\tt NUMBER};
+that value is to be returned as the value of the {\tt expr}.
+The particular assignment {\tt\$\$=\$1} can be omitted---{\tt\$\$}
+is always set to {\tt\$1} unless you explicitly set it to something
+else.
+
+At the next level, when the rule is
+\smallskip
+\begincode
+expr:  expr '+' expr  { $$ = $1 + $3; }
+\endcode
+\smallskip\noindent
+the value of the result {\tt expr} is the sum of the values from
+the two component {\tt expr}'s. Notice that {\tt'+'} is {\tt\$2};
+every component is numbered.
+
+At the level above this, an expressoin followed by a newline
+{\tt'\\n'} is recognized as a list and its value is printed.
+If the end of the input follows such a construction, the parsing
+process terminates cleanly. A {\tt list} can be an empty string;
+this is how blank input lines are handled.
+
+{\tt yacc} input is free form; our format is the recommended standard.
+
+In this implementation, the act of recognizing or parsing the input
+also causes immediate evaluation of the expression. In more
+complicated situations (including {\tt hoc4} and its successors),
+the parsing process generates code for later execution.
+
+You may find it helpful to visualize parsing as drawing a
+{\it parse tree\/} like the one in the figure, and to imaginge
+values being computed and propagated up the tree from the leaves
+towards the root.
+\medskip
+\centerline{\epsfbox{unixdev-1.mps}}
+\centerline{Parse Tree for {\tt 2 + 3 * 4}}
+\medskip
+\noindent
+The values of incompletely-recognized rules are actually kept
+on a stack; this is how the values are passed from one rule
+to the next. The data type of this stack is normally an {\tt int},
+but since we are processing floating point numbers, we have to
+override the default. The definition
+\medskip\begincode
+#define YYSTYPE double
+\endcode\medskip\noindent
+sets the stack type to {\tt double}.
+
+Syntactic classes that will be recognized by the lexical analyzer
+have to be declared unless they are single character literals like
+{\tt+} and~{\tt-}. The declaration {\tt\%token} declares one or
+more such objects. Left or right associativity can be specified
+if appropriate by using {\tt\%left} or {\tt\%right} instead of
+{\tt\%token}. (Left associativity means that {\tt a-b-c} will
+be parsed as {\tt(a-b)-c} instead of {\tt a-(b-c)}.)
+Precedence is determined by order of appearance: tokens
+in the same declaration are at the same level of precedence;
+tokens declared later are of higher precedence. In this way
+the grammar proper is ambiguous (that is, there are multiple
+ways to parse some inputs), but the extra information in the
+declarations resolves the ambiguity.
+
+The rest of the code is the routines in the second half of the
+file {\tt hoc.y}:
+\medskip
+\begincode
+~                       \it Continuing\/\tt hoc.y
+char    *progname;       /* for error messages */
+int     lineno = 1;
+\medskip
+int main(int argc, char *argv[])   /* hoc1 */
+{
+~       progname = argv[0];
+~       yyparse();
+~       return 0;
+}
+\endcode
+\medskip
+\noindent
+{\tt main} calls {\tt yyparse} to parse the input. Looping from
+one expression to the next is done entirely within the grammar,
+by the sequence of productions for {\tt list}. It would have been
+equally acceptable to put a loop around the call to {\tt yyparse}
+in {\tt main} and have the action for {\tt list} print the value
+and return immediately.
+
+{\tt yyparse} in turn calls {\tt yylex} repeatedly for input
+tokens. Our {\tt yylex} is easy: it skips blanks and tabs,
+converts strings of digits into a numeric value, counts input
+lines for error reporting, and returns any other character as
+itself.
+Since the grammar expects to see only {\tt+}, {\tt-}, {\tt*},
+{\tt/}, {\tt(}, {\tt)}, and {\tt\\n}, any other character
+will cause {\tt yyparse} to report an error. Returning a {\tt0}
+signals ``end of file'' to {\tt yyparse}.
+\medskip
+\begincode
+~                       \it Continuing\/\tt hoc.y
+int yylex(void)          /* hoc1 */
+{
+~       int c;
+\smallskip
+~       while ((c=getchar()) == ' ' || c == '\\t')
+~               ;
+~       if (c == EOF)
+~               return 0;
+~       if (c == '.' || isdigit(c)) {   /* number */
+~               ungetc(c, stdin);
+~               scanf("%lf", &yylval);
+~               return NUMBER;
+~       }
+~       if (c == '\\n')
+~               lineno++;
+~       return c;
+}
+\endcode
+\medskip
+\noindent
+The variable {\tt yylval} is used for communication between
+the parser and the lexical analyzer; it is defined by {\tt yyparse},
+and has the same type as the {\tt yacc} stack. {\tt yylex} returns
+the {\it type\/} of a token as its function value, and sets
+{\tt yylval} to the {\it value\/} of the token (if there is one).
+For instance, a floating point number has the type {\tt NUMBER}
+and a value like 12.34. For some tokens, especially single
+characters like {\tt'+'} and {\tt'\\n'}, the grammar does not use
+the value, only the type. In that case, {\tt yylval} need not be set.
+
+The {\tt yacc} declaration {\tt\%token NUMBER} is converted into
+a {\tt\#define} statement in the {\tt yacc} output file {\tt y.tab.c},
+so {\tt NUMBER} can be used as a constant anywhere in the C program.
+{\tt yacc} chooses values that won't collide with {\sc ASCII} characters.
+
+If there is a syntax error, {\tt yyparse} calls {\tt yyerror} with
+a string containing the cryptic message ``{\tt syntax error}.''
+The {\tt yacc} user is expected to provide a {\tt yyerror}; ours
+just passes the string on to another function, {\tt warning},
+which prints somewhat more information. Later versions of {\tt hoc}
+will make direct use of {\tt warning}.
+
+\medskip
+\begincode
+void yyerror(char *s)  /* called for yacc syntax error */
+{
+~       warning(s, (char *) 0);
+}
+\medbreak
+void warning(char *s, char *t)  /* print warning message */
+{
+~       fprintf(stderr, "%s: %s", progname, s);
+~       if (t)
+~               fprintf(stderr, " %s", t);
+~       fprintf(stderr, " near line %d\\n", lineno);
+}
+\endcode
+\medskip
+
+\noindent
+This marks the end of the routines in {\tt hoc.y}.
+
+Compilation of a {\tt yacc} program is a two-step process:
+\medskip
+\begincode
+$ yacc hoc.y            \it Leaves output in \tt y.tab.c
+$ cc y.tab.c -o hoc1    \it Leaves executable program in \tt hoc1
+$ hoc1
+2/3
+~       0.66666667
+-3-4
+hoc1: syntax error near line 1
+$
+\endcode
+\medskip
+
+\exercise 8-1.
+Examine the structure of the {\tt y.tab.c} file.
+%(It's about 300 lines long for {\tt hoc1}.)
+\endexercise
+
+\subsect Making changes---unary minus.
+We claimed earlier that using {\tt yacc} makes it easy to change
+a language. As an illustration, let's add unary minus to {\tt hoc1},
+so that expressions like
+\smallskip\begincode-3-4\endcode\smallskip\noindent
+are evaluated, not rejected as syntax errors.
+
+Exactly two lines have to be added to {\tt hoc.y}. A new token
+{\tt UNARYMINUS} is added to the end of the precedence section,
+to make unary minus have highest precedence:
+\smallskip
+\begincode
+%left  '+' '-'
+%left  '*' '/'
+%left  UNARYMINUS      /* new */
+\endcode
+\smallskip
+\noindent
+The grammar is augmented with one more production for {\tt expr}:
+\smallskip
+\begincode
+expr:    NUMBER                      { $$ = $1; }
+~      | '-' expr  %prec UNARYMINUS  { $$ = -$2; }  /* new */
+\endcode
+\smallskip
+\noindent
+The {\tt\%prec} says that a unary minus sign (that is, a minus
+sign before an expression) has the precedence of {\tt UNARYMINUS}
+(high); the action is to change the sign. A minus sign between
+two expressions takes the default precedence.
+
+\exercise 8-2.
+Add the operators {\tt\%} (modulus or remainder) and unary {\tt+}
+to {\tt hoc1}. Suggestion: look at {\tt frexp}(3).\endexercise
+
+\subsect A digression on {\tt make}.
+It's a nuisance to have to type two commands to compile a new
+version of {\tt hoc1}. Although it's certainly easy to make a
+shell file that does the job, there's a better way, one that
+will generalize nicely later on when there is more than one
+source file in the program. The program {\tt make} reads a
+specification of how the components of a program depend on
+each other, and how to process them to create an up-to-date
+version of the program. It checks the times at which the
+various components were last modified, figures out the
+minimum amount of recompilation that has to be done to make
+a consistent new version, then runs the processes. {\tt make}
+also understands the intricacies of multi-step processes like
+{\tt yacc}, so these tasks can be put into a {\tt make}
+specification without spelling out the individual steps.
+
+{\tt make} is most useful when the program being created
+is large enough to be spread over several source files,
+but it's handy even for something as small as {\tt hoc1}.
+Here is the {\tt make} specification for {\tt hoc1}, which
+{\tt make} expects in a file called {\tt Makefile} or
+{\tt makefile}.
+\medskip
+\begincode
+CFLAGS=-std=c89 -Wall -Wextra
+\smallskip
+hoc1: hoc.o
+~       $(CC) $(LDFLAGS) hoc.o -o hoc1
+\endcode
+\medskip
+\noindent
+The second line is indented with a tab, not with blanks!
+This makefile says that {\tt hoc1} depends on {\tt hoc.o}, and
+that {\tt hoc.o} is converted into {\tt hoc1} by running the
+C~compiler and putting the output in {\tt hoc1}.
+{\tt make} already knows how to convert the {\tt yacc} source
+file in {\tt hoc.y} to an object file {\tt hoc.o}:
+\medskip
+\begincode
+$ make                 \it Make the first thing in\tt Makefile\it,\tt hoc1
+yacc hoc.y
+cc -c y.tab.c
+rm y.tab.c
+mv y.tab.o hoc.o
+cc hoc.o -o hoc1
+$ make                 \it Do it again\tt
+`hoc1' is up to date.   make\it realizes it's unnecessary\tt
+$
+\endcode
+
+
+\bye

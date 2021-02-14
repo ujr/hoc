@@ -1,0 +1,5 @@
+*.dvi
+*.log
+*.mps
+*.mpx
+mpxerr.tex

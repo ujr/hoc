@@ -1,4 +1,5 @@
 *.o
 *.a
 .*.swp
+stage1/hoc1
 /TODO
