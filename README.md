@@ -11,7 +11,7 @@ conform with ANSI C.
 - [excerpt](doc/unixdev.pdf) from *The UNIX Programming Environment*
 - source of [hoc at stage 1](./stage1/hoc.y)
   (four-function calculator, `hoc.y`)
-- source of hoc at stage 2
+- source of [hoc at stage 2](./stage2/hoc.y)
   (add unary minus and variables `a` to `z`)
 - source of hoc at stage 3
   (add arbitrarily named variables and built-ins)

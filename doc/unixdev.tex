@@ -29,7 +29,7 @@
 \def\begincode{\begingroup\tt
   \obeylines\obeyspaces\frenchspacing\spaceskip=\ttglue
   \catcode`\$=12\catcode`\{=12\catcode`\}=12\catcode`\&=12
-  \catcode`\^=12\catcode`\#=12\catcode`\%=12\relax}%
+  \catcode`\^=12\catcode`\#=12\catcode`\%=12\catcode`\_=12\relax}%
 \def\endcode{\par\endgroup}
 
 \def\\{\char"5C}% backslash in cmtt font
@@ -127,6 +127,7 @@ By the way, we wasted a lot of time debating names for this language
 but never came up with anything satisfactory. We settled on {\tt hoc},
 which stands for ``high-order calculator.'' The versions are thus
 {\tt hoc1}, {\tt hoc2}, etc.
+
 
 \section Stage 1: A four-function calculator
 
@@ -548,7 +549,8 @@ two expressions takes the default precedence.
 
 \exercise 8-2.
 Add the operators {\tt\%} (modulus or remainder) and unary {\tt+}
-to {\tt hoc1}. Suggestion: look at {\tt frexp}(3).\endexercise
+to {\tt hoc1}. Suggestion: look at {\tt frexp}(3) [or rather
+{\tt fmod}(3)].\endexercise
 
 \subsect A digression on {\tt make}.
 It's a nuisance to have to type two commands to compile a new
@@ -600,5 +602,225 @@ $ make                 \it Do it again\tt
 $
 \endcode
 
+
+\section Stage 2: Variables and error recovery
+
+The next step (a small one) is to add ``memory'' to {\tt hoc1},
+to make {\tt hoc2}. The memory has 26 variables, named {\tt a}
+to {\tt z}. This isn't very elegant, but it's an easy and useful
+intermediate step. We'll also add some error handling. If you
+try {\tt hoc1}, you'll recognize that its approach to syntax
+errors is to print a message and die, and its treatment of
+arithmetic errors like division by zero is reprehensible:
+
+\medskip
+\begincode
+$ hoc1
+1/0
+Floating exception - core dumped
+$
+\endcode
+\medskip
+
+The changes needed for these new features are modest, about
+35~lines of code. The lexical analyzer {\tt yylex} has to
+recognize letters as variables; the grammar has to include
+productions of the form
+\smallskip
+\begincode
+expr:   VAR
+~     | VAR '=' expr
+\endcode
+\smallskip
+\noindent
+An expression can contain an assignment, which permits multiple
+assignments like
+\smallskip
+\begincode
+x = y = z = 0
+\endcode
+\medskip
+
+The easiest way to store the values of the variables is in a
+26-element array; the single-letter variable name can be used
+to index the array. But if the grammar is to process both
+variable names and values in the same stack, {\tt yacc} has
+to be told that its stack contains a union of a {\tt double}
+and an {\tt int}, not just a {\tt double}. This is done with
+the {\tt\%union} declaration near the top. A {\tt\#define}
+or a {\tt typedef} is fine for setting the stack to a basic
+type like {\tt double}, but the {\tt\%union} mechanism is
+required for union types because {\tt yacc} checks for
+consistency in expressions like {\tt\$\$=\$2}.
+
+Here is the grammar part of {\tt hoc.y} for {\tt hoc2}:
+\medskip
+\begincode
+%{
+double mem[26];          /* memory for variables 'a' to 'z' */
+%}
+%union {
+~       double  val;     /* actual value */
+~       int     index;   /* index into mem[] */
+}
+%token  <val>   NUMBER
+%token  <index> VAR      /* VAR is index member of union */
+%type   <val>   expr     /* expr is val member of union */
+%right  '='
+%left   '+' '-'
+%left   '*' '/'
+%left   UNARYPM
+%%
+left:     /* nothing */
+~       | list '\\n'
+~       | list expr '\\n'      { printf("\\t%.8g\\n", $2); }
+~       | list error '\\n'     { yyerrok; }
+~       ;
+expr:     NUMBER
+~       | VAR            { $$ = mem[$1]; }
+~       | VAR '=' expr   { $$ = mem[$1] = $3; }
+~       | expr '+' expr  { $$ = $1 + $3; }
+~       | expr '-' expr  { $$ = $1 - $3; }
+~       | expr '*' expr  { $$ = $1 * $3; }
+~       | expr '/' expr  { if ($3 == 0.0)
+~                            execerror("division by zero", "");
+~                          $$ = $1 / $3; }
+~       | '(' expr ')'   { $$ = $2; }
+~       | '-' expr  %prec UNARYPM  { $$ = -$2; }
+~       ;
+%%
+~       /* end of grammar */
+...
+\endcode
+\medskip
+
+\noindent
+The {\tt\%union} says that stack elements hold either a
+{\tt double} (a number, the usual case), or an {\tt int},
+which is an index into the array {\tt mem}. The {\tt\%token}
+declarations have been augmented with a type indicator.
+The {\tt\%type} declaration specifies that {\tt expr} is the
+{\tt<val>} member of the union, i.e., a {\tt double}.
+The type information makes it possible for {\tt yacc}
+to generate references to the corect members of the union.
+Notice also that {\tt=} is right-associative, while the
+other operators are left-associative.
+
+Error handling comes in several pieces. The obvious one is
+a test for a zero divisor; if one occurs, an error routine
+{\tt execerror} is called.
+
+A second test is to catch the ``floating point exception''
+signal that occurs when a floating point number overflows.
+The signal is set in {\tt main}.
+
+The final part of error recovery is the addition of a
+production for {\tt error}. ``{\tt error}'' is a reserved
+word in a {\tt yacc} grammar; it provides a way to anticipate
+and recover from a syntax error. If an error occurs, {\tt yacc}
+will eventually try to use this production, recognize the
+error as grammatically ``correct,'' and thus recover.
+The action {\tt yyerrok} sets a flag in the parser that
+permits it to get back into a sensible parsing state.
+Error recovery is difficult in any parser; you should be aware
+that we have taken only the most elementary steps here, and
+have skipped rapidly over {\tt yacc}'s capabilities as well.
+
+The actions in the {\tt hoc2} grammar are not much changed.
+Here is {\tt main}, to which we have added {\tt setjmp} to
+save a clean state suitable for resuming after an error.
+{\tt execerror} does the matching {\tt longjmp}.
+\medskip
+\begincode
+...
+#include <signal.h>
+#include <setjmp.h>
+jmp_buf begin;
+\medskip
+int main(int argc, char *argv[])  /* hoc2 */
+{
+~       int fpecatch(void);
+\medskip
+~       progname = argv[0];
+~       setjmp(begin);
+~       signal(SIGFPE, fpecatch);
+~       yyparse();
+~       return 0;
+}
+\medskip
+void execerror(char *s, char *t)  /* run-time error recovery */
+{
+~       warning(s, t);
+~       longjmp(begin, 0);
+}
+\medskip
+void fpecatch(int signum)  /* catch floating point exceptions */
+{
+~       execerror("floating point exception", (char *) 0);
+}
+\endcode
+\medskip
+\noindent
+For debugging, we found it convenient to have {\tt execerror} call
+{\tt abort}(3), which causes a core dump that can be perused with
+{\tt adb} or {\tt sdb} [or {\tt gdb}]. Once the program
+is fairly robust, {\tt abort} is replaced by {\tt longjmp}.
+
+The lexical analyzer is a little different from {\tt hoc2}.
+There is an extra test for a lower-case letter, and since
+{\tt yylval} is now a union, the proper member has to be set
+before {\tt yylex} returns. Here are the parts that have changed:
+\medskip
+\begincode
+int yylex(void)  /* hoc2 */
+...
+~       if (c == '.' || isdigit(c)) {  /* number */
+~               ungetc(c, stdin);
+~               scanf("%lf", &yylval.val);
+~               return NUMBER;
+~       }
+~       if (islower(c)) {
+~               yylval.index = c - 'a';  /* ASCII only */
+~               return VAR;
+~       }
+...
+\endcode
+\medskip
+\noindent
+Again, notice how the token type (e.g., {\tt NUMBER}) is distinct
+from its value (e.g., 3.1416);
+
+Let us illustrate variables and error recovery, the new
+things in {\tt hoc2}:
+\medskip
+\begincode
+$ hoc2
+x = 355
+~       355
+y = 113
+~       113
+p = x/z                         \it z is undefined and thus zero\tt
+hoc2: division by zero near line 4     \it Error recovery\tt
+x/y
+~       3.1415929
+1e30 * 1e30                            \it Overflow\tt
+hoc2: floating point exception near line 5
+...
+\endcode
+\medskip
+\noindent
+Actually, the {\sc PDP}-11 requires special arrangements to detect
+floating point overflow, but on most other machines {\tt hoc2}
+behaves as shown.
+
+\exercise 8-3.
+Add a facility for remembering the most recent value computed,
+so that it does not have to be retyped in a sequence of related
+computations. One solution is to make it one of the variables,
+for instance `{\tt p}' for `previous.'\endexercise
+
+\exercise 8-4.
+Modify {\tt hoc} so that a semicolon can be used as an expression
+terminator equivalent to a newline.\endexercise
 
 \bye
