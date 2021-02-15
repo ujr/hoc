@@ -23,7 +23,9 @@ void yyerror(char *s);
 %%
 list:     /* nothing */
         | list       '\n'
+        | list       ';'
         | list expr  '\n'  { printf("\t%.8g\n", $2); }
+        | list expr  ';'
         | list error '\n'  { yyerrok; }
         ;
 expr:     NUMBER         { $$ = $1; }
