@@ -1,7 +1,8 @@
-CFLAGS=-std=c89 -Wall -Wextra
+CFLAGS = -std=c89 -Wall -Wextra
+LDFLAGS = -lm
 
-hoc1: hoc.o
-	$(CC) $(CFLAGS) hoc.o -o hoc2 -lm
+hoc2: hoc.o
+	$(CC) $(CFLAGS) hoc.o -o hoc2 $(LDFLAGS)
 
 clean:
 	rm -f *.o y.tab.c hoc2

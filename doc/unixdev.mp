@@ -44,5 +44,49 @@ draw root.c--addexpr.n cutbefore bpath root;
 draw root.c{dir320}..{dir280}newline.n cutbefore bpath root;
 endfig;
 
+beginfig(2)
+interim defaultdy:=0pt;
+interim defaultdx:=0pt;
+boxjoin(a.e+(10mm,0)=b.w);
+boxit.empty(btex\strut({\it empty\/})etex);
+boxit.xeqone(btex\strut{\tt x = 1}etex);
+boxit.newline(btex\strut{\tt\char"5Cn}etex);
+boxjoin();
+boxit.list(btex\strut{\it list}etex);  list.s=empty.n+(0,5mm);
+boxit.asgn(btex\strut{\it asgn}etex);  asgn.s=xeqone.n+(0,5mm);
+boxit.aexp(btex\strut{\it expr}etex);  aexp.s=asgn.n+(0,5mm);
+boxit.root(btex\strut{\it list}etex);  root.s=aexp.n+(0,5mm);
+empty.c = origin;
+drawunboxed(empty, xeqone, newline, list, asgn, aexp, root);
+draw empty.n--list.s;
+draw xeqone.n--asgn.s;
+draw asgn.n--aexp.s;
+draw root.c{dir225}..{dir260}list.c cutbefore bpath root cutafter bpath list;
+draw root.c..aexp.c cutbefore bpath root cutafter bpath aexp;
+draw root.c{dir315}..{dir280}newline.c
+  cutbefore bpath root cutafter bpath newline;
+endfig;
+
+beginfig(3)
+interim defaultdy:=0pt;
+interim defaultdx:=2pt;
+boxjoin(a.e+(10mm,0)=b.w);
+boxit.empty(btex\strut({\it empty\/})etex);
+boxit.xeqone(btex\strut{\tt x = 1}etex);
+boxit.newline(btex\strut{\tt\char"5Cn}etex);
+boxjoin();
+boxit.list(btex\strut{\it list}etex); list.s=empty.n+(0,6mm);
+boxit.asgn(btex\strut{\it asgn}etex); asgn.s=xeqone.n+(0,6mm);
+boxit.root(btex\strut{\it list}etex); root.s=asgn.n+(0,6mm);
+empty.c = origin;
+drawunboxed(empty, xeqone, newline, list, asgn, root);
+draw empty.n--list.s;
+draw xeqone.n--asgn.s;
+draw root.c--list.c cutbefore bpath root cutafter bpath list;
+draw root.c--asgn.c cutbefore bpath root cutafter bpath asgn;
+draw root.c{dir300}..{dir280}newline.c
+  cutbefore bpath root cutafter bpath newline;
+endfig;
+
 end
 

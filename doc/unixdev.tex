@@ -26,16 +26,16 @@
   \noindent{\bf Exercise #1.\enspace}\ignorespaces}
 \def\endexercise{\unskip\kern.8ex$\sqcup\mkern-12mu\sqcap$\par\endgroup}
 
-\def\begincode{\begingroup\tt
+\def\begincode{\medbreak\begingroup\tt
   \obeylines\obeyspaces\frenchspacing\spaceskip=\ttglue
   \catcode`\$=12\catcode`\{=12\catcode`\}=12\catcode`\&=12
   \catcode`\^=12\catcode`\#=12\catcode`\%=12\catcode`\_=12\relax}%
-\def\endcode{\par\endgroup}
+\def\endcode{\medskip\endgroup}
 
-\def\\{\char"5C}% backslash in cmtt font
-\def\ocb{\char"7B}% opening curly brace in cmtt
-\def\ccb{\char"7D}% closing curly brace in cmtt
-
+\def\0{\phantom{0}}% to align numbers
+\def\\{\char"5C\relax}% backslash in cmtt font
+\def\ocb{\char"7B\relax}% opening curly brace in cmtt
+\def\ccb{\char"7D\relax}% closing curly brace in cmtt
 
 
 \topglue 0pc\noindent
@@ -139,7 +139,6 @@ parentheses that can be nested arbirarily deeply, which few pocket
 calculators provide. If you type an expression followed by
 {\sc RETURN}, the anwer will be printed on the next line:
 
-\medskip
 \begincode
 $ hoc1
 4*3*2
@@ -151,17 +150,16 @@ $ hoc1
 355/113
 ~       3.1415929
 -3-4
-hoc1: syntax error near line 4\qquad\it It doesn't have unary minus yet
+hoc1: syntax error near line 4\quad\it It doesn't have unary minus yet
 \tt$
 \endcode
-\medskip
 
 \subsect Grammars.
 Ever since Backus-Naur Form was developed for Algol, languages have
 been described by formal grammars. The grammar for {\tt hoc1} is small
 and simple in its abstract representation:
 
-\medskip
+\medbreak
 \indent\indent\vbox{\halign{\tabskip1em\tt#\hfil&\tt#\hfil\cr
  list:& expr \\n\cr
       & list expr \\n\cr
@@ -235,7 +233,6 @@ start with~y.)
 To be somewhat more precise, the input to {\tt yacc} takes
 this form:
 
-\medskip
 \begincode
 %{
 \it C statements like \tt#include\it, declarations, etc. This section is optional\tt
@@ -250,13 +247,12 @@ main() { ...; yyparse(); ... }
 yylex() { ... }
 ...
 \endcode
-\medskip
 
 \noindent
 This is processed by {\tt yacc} and the result is written into
 a file called {\tt y.tab.c}, whose layout is like this:
 
-\medskip
+\smallbreak
 \begingroup
 \obeylines
 {\it C statements from between {\tt\%\ocb} and {\tt\%\ccb}, if any}
@@ -266,7 +262,7 @@ a file called {\tt y.tab.c}, whose layout is like this:
 ...
 {\tt yyparse() \ocb\ \it parser, which calls \tt yylex() \ccb}
 \endgroup
-\medskip
+\smallskip
 
 It is typical of the {\sc UNIX} approach that {\tt yacc} produces
 C instead of a compiled object ({\tt.o}) file. This is the most
@@ -289,7 +285,6 @@ but this convention is not enforced by {\tt yacc} itself, unlike
 {\tt cc} with {\tt.c} files) The grammar part is the first half of
 {\tt hoc.y}:
 
-\medskip
 \begincode
 %{
 #include <stdio.h>      \it includes needed for code later on\tt
@@ -317,7 +312,6 @@ expr:     NUMBER          { $$ = $1; }
 ~       /* end of grammar */
 ...
 \endcode
-\medskip
 
 There's a lot of new information packed into these few lines.
 We are not going to explain all of it, and certainly not how
@@ -332,11 +326,10 @@ Within an action, {\tt\$\it n\/} (that is, {\tt\$1}, {\tt\$2}, etc.)
 refers to the value returned by the $n$th component of the rule,
 and {\tt\$\$} is the value to be returned as the value of the
 whole rule. So for example, in the rule
-\smallskip
 \begincode
 expr:  NUMBER  { $$ = $1; }
 \endcode
-\smallskip\noindent
+\noindent
 {\tt\$1} is the value returned by recognizing {\tt NUMBER};
 that value is to be returned as the value of the {\tt expr}.
 The particular assignment {\tt\$\$=\$1} can be omitted---{\tt\$\$}
@@ -344,11 +337,10 @@ is always set to {\tt\$1} unless you explicitly set it to something
 else.
 
 At the next level, when the rule is
-\smallskip
 \begincode
 expr:  expr '+' expr  { $$ = $1 + $3; }
 \endcode
-\smallskip\noindent
+\noindent
 the value of the result {\tt expr} is the sum of the values from
 the two component {\tt expr}'s. Notice that {\tt'+'} is {\tt\$2};
 every component is numbered.
@@ -380,9 +372,9 @@ on a stack; this is how the values are passed from one rule
 to the next. The data type of this stack is normally an {\tt int},
 but since we are processing floating point numbers, we have to
 override the default. The definition
-\medskip\begincode
+\begincode
 #define YYSTYPE double
-\endcode\medskip\noindent
+\endcode\noindent
 sets the stack type to {\tt double}.
 
 Syntactic classes that will be recognized by the lexical analyzer
@@ -401,7 +393,6 @@ declarations resolves the ambiguity.
 
 The rest of the code is the routines in the second half of the
 file {\tt hoc.y}:
-\medskip
 \begincode
 ~                       \it Continuing\/\tt hoc.y
 char    *progname;       /* for error messages */
@@ -414,7 +405,6 @@ int main(int argc, char *argv[])   /* hoc1 */
 ~       return 0;
 }
 \endcode
-\medskip
 \noindent
 {\tt main} calls {\tt yyparse} to parse the input. Looping from
 one expression to the next is done entirely within the grammar,
@@ -432,7 +422,6 @@ Since the grammar expects to see only {\tt+}, {\tt-}, {\tt*},
 {\tt/}, {\tt(}, {\tt)}, and {\tt\\n}, any other character
 will cause {\tt yyparse} to report an error. Returning a {\tt0}
 signals ``end of file'' to {\tt yyparse}.
-\medskip
 \begincode
 ~                       \it Continuing\/\tt hoc.y
 int yylex(void)          /* hoc1 */
@@ -453,7 +442,6 @@ int yylex(void)          /* hoc1 */
 ~       return c;
 }
 \endcode
-\medskip
 \noindent
 The variable {\tt yylval} is used for communication between
 the parser and the lexical analyzer; it is defined by {\tt yyparse},
@@ -477,28 +465,24 @@ just passes the string on to another function, {\tt warning},
 which prints somewhat more information. Later versions of {\tt hoc}
 will make direct use of {\tt warning}.
 
-\medskip
 \begincode
 void yyerror(char *s)  /* called for yacc syntax error */
 {
-~       warning(s, (char *) 0);
+~       warning(s, 0);
 }
 \medbreak
 void warning(char *s, char *t)  /* print warning message */
 {
 ~       fprintf(stderr, "%s: %s", progname, s);
-~       if (t)
-~               fprintf(stderr, " %s", t);
+~       if (t) fprintf(stderr, " %s", t);
 ~       fprintf(stderr, " near line %d\\n", lineno);
 }
 \endcode
-\medskip
 
 \noindent
 This marks the end of the routines in {\tt hoc.y}.
 
 Compilation of a {\tt yacc} program is a two-step process:
-\medskip
 \begincode
 $ yacc hoc.y            \it Leaves output in \tt y.tab.c
 $ cc y.tab.c -o hoc1    \it Leaves executable program in \tt hoc1
@@ -509,7 +493,6 @@ $ hoc1
 hoc1: syntax error near line 1
 $
 \endcode
-\medskip
 
 \exercise 8-1.
 Examine the structure of the {\tt y.tab.c} file.
@@ -519,28 +502,23 @@ Examine the structure of the {\tt y.tab.c} file.
 \subsect Making changes---unary minus.
 We claimed earlier that using {\tt yacc} makes it easy to change
 a language. As an illustration, let's add unary minus to {\tt hoc1},
-so that expressions like
-\smallskip\begincode-3-4\endcode\smallskip\noindent
-are evaluated, not rejected as syntax errors.
+so that expressions like {\tt-3-4} are evaluated, not rejected
+as syntax errors.
 
 Exactly two lines have to be added to {\tt hoc.y}. A new token
 {\tt UNARYMINUS} is added to the end of the precedence section,
 to make unary minus have highest precedence:
-\smallskip
 \begincode
 %left  '+' '-'
 %left  '*' '/'
 %left  UNARYMINUS      /* new */
 \endcode
-\smallskip
 \noindent
 The grammar is augmented with one more production for {\tt expr}:
-\smallskip
 \begincode
 expr:    NUMBER                      { $$ = $1; }
 ~      | '-' expr  %prec UNARYMINUS  { $$ = -$2; }  /* new */
 \endcode
-\smallskip
 \noindent
 The {\tt\%prec} says that a unary minus sign (that is, a minus
 sign before an expression) has the precedence of {\tt UNARYMINUS}
@@ -574,14 +552,10 @@ but it's handy even for something as small as {\tt hoc1}.
 Here is the {\tt make} specification for {\tt hoc1}, which
 {\tt make} expects in a file called {\tt Makefile} or
 {\tt makefile}.
-\medskip
 \begincode
-CFLAGS=-std=c89 -Wall -Wextra
-\smallskip
 hoc1: hoc.o
-~       $(CC) $(LDFLAGS) hoc.o -o hoc1
+~       $(CC) $(CFLAGS) hoc.o -o hoc1
 \endcode
-\medskip
 \noindent
 The second line is indented with a tab, not with blanks!
 This makefile says that {\tt hoc1} depends on {\tt hoc.o}, and
@@ -589,7 +563,6 @@ that {\tt hoc.o} is converted into {\tt hoc1} by running the
 C~compiler and putting the output in {\tt hoc1}.
 {\tt make} already knows how to convert the {\tt yacc} source
 file in {\tt hoc.y} to an object file {\tt hoc.o}:
-\medskip
 \begincode
 $ make                 \it Make the first thing in\tt Makefile\it,\tt hoc1
 yacc hoc.y
@@ -613,33 +586,27 @@ try {\tt hoc1}, you'll recognize that its approach to syntax
 errors is to print a message and die, and its treatment of
 arithmetic errors like division by zero is reprehensible:
 
-\medskip
 \begincode
 $ hoc1
 1/0
 Floating exception - core dumped
 $
 \endcode
-\medskip
 
 The changes needed for these new features are modest, about
 35~lines of code. The lexical analyzer {\tt yylex} has to
 recognize letters as variables; the grammar has to include
 productions of the form
-\smallskip
 \begincode
 expr:   VAR
 ~     | VAR '=' expr
 \endcode
-\smallskip
 \noindent
 An expression can contain an assignment, which permits multiple
 assignments like
-\smallskip
 \begincode
 x = y = z = 0
 \endcode
-\medskip
 
 The easiest way to store the values of the variables is in a
 26-element array; the single-letter variable name can be used
@@ -654,7 +621,6 @@ required for union types because {\tt yacc} checks for
 consistency in expressions like {\tt\$\$=\$2}.
 
 Here is the grammar part of {\tt hoc.y} for {\tt hoc2}:
-\medskip
 \begincode
 %{
 double mem[26];          /* memory for variables 'a' to 'z' */
@@ -671,7 +637,7 @@ double mem[26];          /* memory for variables 'a' to 'z' */
 %left   '*' '/'
 %left   UNARYPM
 %%
-left:     /* nothing */
+list:     /* nothing */
 ~       | list '\\n'
 ~       | list expr '\\n'      { printf("\\t%.8g\\n", $2); }
 ~       | list error '\\n'     { yyerrok; }
@@ -692,7 +658,6 @@ expr:     NUMBER
 ~       /* end of grammar */
 ...
 \endcode
-\medskip
 
 \noindent
 The {\tt\%union} says that stack elements hold either a
@@ -730,7 +695,6 @@ The actions in the {\tt hoc2} grammar are not much changed.
 Here is {\tt main}, to which we have added {\tt setjmp} to
 save a clean state suitable for resuming after an error.
 {\tt execerror} does the matching {\tt longjmp}.
-\medskip
 \begincode
 ...
 #include <signal.h>
@@ -739,7 +703,7 @@ jmp_buf begin;
 \medskip
 int main(int argc, char *argv[])  /* hoc2 */
 {
-~       int fpecatch(void);
+~       void fpecatch(int);
 \medskip
 ~       progname = argv[0];
 ~       setjmp(begin);
@@ -759,18 +723,16 @@ void fpecatch(int signum)  /* catch floating point exceptions */
 ~       execerror("floating point exception", (char *) 0);
 }
 \endcode
-\medskip
 \noindent
 For debugging, we found it convenient to have {\tt execerror} call
 {\tt abort}(3), which causes a core dump that can be perused with
 {\tt adb} or {\tt sdb} [or {\tt gdb}]. Once the program
 is fairly robust, {\tt abort} is replaced by {\tt longjmp}.
 
-The lexical analyzer is a little different from {\tt hoc2}.
+The lexical analyzer is a little different in {\tt hoc2}.
 There is an extra test for a lower-case letter, and since
 {\tt yylval} is now a union, the proper member has to be set
 before {\tt yylex} returns. Here are the parts that have changed:
-\medskip
 \begincode
 int yylex(void)  /* hoc2 */
 ...
@@ -785,14 +747,12 @@ int yylex(void)  /* hoc2 */
 ~       }
 ...
 \endcode
-\medskip
 \noindent
 Again, notice how the token type (e.g., {\tt NUMBER}) is distinct
 from its value (e.g., 3.1416);
 
 Let us illustrate variables and error recovery, the new
 things in {\tt hoc2}:
-\medskip
 \begincode
 $ hoc2
 x = 355
@@ -807,7 +767,6 @@ x/y
 hoc2: floating point exception near line 5
 ...
 \endcode
-\medskip
 \noindent
 Actually, the {\sc PDP}-11 requires special arrangements to detect
 floating point overflow, but on most other machines {\tt hoc2}
@@ -822,5 +781,629 @@ for instance `{\tt p}' for `previous.'\endexercise
 \exercise 8-4.
 Modify {\tt hoc} so that a semicolon can be used as an expression
 terminator equivalent to a newline.\endexercise
+
+
+\section Stage 3: Arbitrary variable names; built-in functions
+
+This version, {\tt hoc3}, adds several major new capabilities,
+and a corresponding amount of extra code. The main feature is
+access to built-in functions:
+\begincode
+sin   cos   atan   exp   log   log10   sqrt   int   abs
+\endcode
+\noindent
+We have also added an exponentiation operator `{\tt\char"5E}'; it has
+the highest precendence, and is right-associative.
+
+Since the lexical analyzer has to cope with built-in names
+longer than a single character, it isn't much extra effort
+to permit variable names to be arbitrarily long as well.
+We will need a more sophisticated symbol table to keep track
+of these variables, but once we have it, we can pre-load it
+with names and values for some useful constants:
+\medskip
+\halign{\tabskip1em\indent\tt#\hfil&#\hfil&#\hfil\cr
+  DEG&     57.29577951308232087680& $180/\pi$, degrees per radian\cr
+  E&      \02.71828182845904523536& $e$, base of natural logarithms\cr
+  GAMMA&  \00.57721566490153286060& $\gamma$, Euler-Mascheroni constant\cr
+  PHI&    \01.61803398874989484820& $(\sqrt 5+1)/2$, the golden ratio\cr
+  PI&     \03.14159265358979323846& $\pi$, circular transcendental number\cr}
+\medbreak
+\noindent
+The result is a useful calculator:
+\begincode
+$ hoc3
+1.5^2.3
+~       2.5410306
+exp(2.3*log(1.5))
+~       2.5410306
+sin(PI/2)
+~       1
+atan(1)*DEG
+~       45
+...
+\endcode
+
+We have also cleaned up the behavior a little. In {\tt hoc2},
+the assignment {\tt x=\it expr\/} not only causes the assignment
+but also prints the value, because all expressions are printed:
+\begincode
+$ hoc2
+x = 2 * 3.14159
+~       6.28318        \it Value printed for assignment to variable\tt
+\endcode
+\noindent
+In {\tt hoc3}, a distinction is made between assignments and
+expressions; values are printed only for expressions:
+\begincode
+$ hoc3
+x = 2 * 3.14159        \it Assignment: no value is printed\tt
+x                      \it Expression:\tt
+~       6.28318        \it\quad value is printed
+\endcode
+
+The program that results from all these changes is big enough
+(about 250 lines) that it is best split into separate files
+for easier editing and faster compilation.
+There are now five files instead of one:
+\medskip
+\halign{\tabskip2em\indent\tt#\hfil&#\hfil\cr
+  hoc.y&    Grammar, {\tt main}, {\tt yylex} (as before)\cr
+  hoc.h&    Global data structures for inclusion\cr
+  symbol.c& Symbol table routines: {\tt lookup}, {\tt install}\cr
+  init.c&   Built-ins and constants: {\tt init}\cr
+  math.c&   Interfaces to math routines: {\tt Sqrt}, {\tt Log}, etc.\cr}
+\medskip
+\noindent
+This requires that we learn more about how to organize
+a multi-file C program, and more about {\tt make} so it can
+do some of the work for us.
+
+We'll get back to {\tt make} shortly. First, let us look at
+the symbol table code. A symbol has a name, a type (it's
+either a {\tt VAR} or a {\tt BLTIN}), and a value. If the
+symbol is a {\tt VAR}, the value is a {\tt double}; if the
+symbol is a built-in, the value is a pointer to a function
+that returns a {\tt double}. This information is needed in
+{\tt hoc.y}, {\tt symbol.c}, and {\tt init.c}. We could just
+make three copies, but it's too easy to make a mistake or
+forget to update one copy when a change is made. Instead
+we put the common information into a header file {\tt hoc.h}
+that will be included by any file that needs it. (The suffix
+{\tt.h} is conventional but not enforced by any program.)
+We will also add to the {\tt Makefile} the fact that these
+files depend on {\tt hoc.h}, so that when it changes, the
+necessary recompilations are done too. Here is {\tt hoc.h}:
+\begincode
+struct Symbol {            /* symbol table entry */
+~       char    *name;
+~       short   type;            /* VAR, BLTIN, UNDEF */
+~       union {
+~               double  val;            /* if VAR */
+~               double  (*ptr)();       /* if BLTIN */
+~       } u;
+~       struct Symbol   *next;   /* to link to another */
+} Symbol;
+\smallskip
+typedef struct Symbol Symbol;
+\smallskip
+Symbol *install(char *s, int t, double d);
+Symbol *lookup(char *s);
+\smallskip
+void init(void);
+void execerror(char *s, char *t);
+\endcode
+\noindent
+The type {\tt UNDEF} is a {\tt VAR} that has not yet been
+assigned a value.
+
+The symbols are linked together in a list using the {\tt next}
+field in {\tt Symbol}. The list itself is local to {\tt symbol.c};
+the only access to it is through the functions {\tt lookup} and
+{\tt install}. This makes it easy to change the symbol table
+organization if it becomes necessary. (We did that once.)
+{\tt lookup} searches the list for a particular name and returns
+a pointer to the {\tt Symbol} with that name if found, and zero
+otherwise. The symbol table uses linear search, which is entirely
+adequate for our interactive calculator, since variables are looked
+up only during parsing, not execution. {\tt install} puts a variable
+with its associated type and value at the head of the list.
+{\tt emalloc} calls {\tt malloc}(3), the standard storage allocator,
+and checks the result. These three routines are the contents of
+{\tt symbol.c}. The file {\tt y.tab.h} is generated by running
+{\tt yacc -d}; it contains {\tt\#define} statements that {\tt yacc}
+has generated for tokens like {\tt NUMBER}, {\tt VAR}, {\tt BLTIN},
+etc. Here is {\tt symbol.c}:
+\begincode
+#include "hoc.h"
+#include "y.tab.h"
+#include <stdlib.h>
+#include <string.h>
+\medskip
+void *emalloc(unsigned nbytes);
+\medskip
+static Symbol *symlist = 0;  /* symbol table: linked list */
+\medskip
+Symbol *lookup(char *s)  /* find s in symbol table */
+{
+~       Symbol *sp;
+~       for (sp = symlist; sp; sp = sp->next)
+~               if (strcmp(sp->name, s) == 0)
+~                       return sp;
+~       return 0;  /* not found */
+}
+\medbreak
+Symbol *install(char *s, int t, double d)  /* add s to symtab */
+{
+~       Symbol *sp = emalloc(sizeof(Symbol));
+~       sp->name = emalloc(strlen(s)+1);  /* +1 for '\\0' */
+~       strcpy(sp->name, s);
+~       sp->type = t;
+~       sp->u.val = d;
+~       sp->next = symlist;  /* put at front of list */
+~       symlist = sp;
+~       return sp;
+}
+\medbreak
+void *emalloc(unsigned nbytes)  /* check return from malloc */
+{
+~       void *p = malloc(nbytes);
+~       if (!p) execerror("out of memory", 0);
+~       return p;
+}
+\endcode
+
+The file {\tt init.c} contains definitions for the constants
+({\tt PI}, etc.) and function pointers for built-ins; they are
+installed in the symbol table by the function {\tt init},
+which is called by {\tt main}. Here is {\tt init.c}:
+\begincode
+#include "hoc.h"
+#include "y.tab.h"
+#include <math.h>
+\medskip
+extern double Log(), Log10(), Exp(), Sqrt(), integer();
+\medbreak
+static struct {        /* Constants */
+~   char    *name;
+~   double  cval;
+} consts[] = {
+~   { "PI",    3.14159265358979323846 },
+~   { "E",     2.71828182845904523536 },
+~   { "GAMMA", 0.57721566490153286060 },  /* Euler */
+~   { "DEG",  57.29577951308232087680 },  /* deg/radian */
+~   { "PHI",   1.61803398874989484820 },  /* golden ratio */
+~   { 0,       0 }
+};
+\medbreak
+static struct {        /* Built-ins */
+~   char    *name;
+~   double  (*func)();
+} builtins[] = {
+~   { "sin",    sin     },
+~   { "cos",    cos     },
+~   { "atan",   atan    },
+~   { "log",    Log     },  /* checks argument */
+~   { "log10",  Log10   },  /* checks argument */
+~   { "exp",    Exp     },  /* checks argument */
+~   { "sqrt",   Sqrt    },  /* checks argument */
+~   { "int",    integer },
+~   { "abs",    fabs    },
+~   { 0,        0       }
+};
+\medbreak
+void init(void)  /* install constants and built-ins in symtab */
+{
+~       int i;
+~       Symbol *sp;
+\smallbreak
+~       for (i = 0; consts[i].name; i++)
+~               install(consts[i].name, VAR, consts[i].cval);
+~       for (i = 0; builtins[i].name; i++) {
+~               sp = install(builtins[i].name, BLTIN, 0.0);
+~               sp->u.ptr = builtins[i].func;
+~       }
+}
+\endcode
+\noindent
+The data is kept in tables rather than being wired into the
+code because tables are easier to read and to change. The tables
+are declared {\tt static} so that they are visible only within
+this file rather than throughout the program. We'll come back
+to the math routines like {\tt Log} and {\tt Sqrt} shortly.
+
+With the foundation in place, we can move on to the changes
+in the grammar that make use of it. Here is {\tt hoc.y}:
+\begincode
+%{
+#include "hoc.h"
+extern double Pow();
+%}
+%union {
+~       double  val;    /* actual value */
+~       Symbol *sym;    /* symbol table pointer */
+}
+%token  <val>   NUMBER
+%token  <sym>   VAR BLTIN UNDEF
+%token  <val>   expr asgn
+%right  '='
+%left   '+' '-'
+%left   '*' '/'
+%left   UNARYPM
+%right  '^'     /* exponentiation */
+%%
+list:     /* nothing */
+~       | list       '\\n'
+~       | list asgn  '\\n'
+~       | list expr  '\\n'    { printf("\\t%.8g\\n", $2); }
+~       | list error '\\n'    { yyerrok; }
+~       ;
+asgn:     VAR '=' expr  { $$ = $1->u.val = $3; $1->type = VAR; }
+~       ;
+expr:     NUMBER
+~       | VAR { if ($1->type == UNDEF)
+~                   execerror("undefined variable", $1->name);
+~               $$ = $1->u.val; }
+~       | asgn
+~       | BLTIN '(' expr ')'  { $$ = (*($1->u.ptr))($3); }
+~       | expr '+' expr  { $$ = $1 + $3; }
+~       | expr '-' expr  { $$ = $1 - $3; }
+~       | expr '*' expr  { $$ = $1 * $3; }
+~       | expr '/' expr  { if ($3 == 0.0)
+~                              execerror("division by zero", "");
+~                          $$ = $1 / $3; }
+~       | expr '^' expr  { $$ = Pow($1, $3); }
+~       | '(' expr ')'   { $$ = $2; }
+~       | '-' expr  %prec UNARYPM  { $$ = -$2; }
+~       | '+' expr  %prec UNARYPM  { $$ = $2; }
+~       ;
+%%
+~       /* end of grammar */
+...
+\endcode
+\noindent
+The grammar now has {\tt asgn}, for assignment, as well as
+{\tt expr}; an input line that contains just
+\begincode
+VAR = expr
+\endcode
+\noindent
+is an assignment, and so no value is printed. Notice, by the way,
+how easy it was to add exponentiation to the grammar, including
+its right associativity.
+
+The {\tt yacc} stack has a different {\tt\%union}: instead of
+referring to a variable by its index in a 26-element table,
+there is a pointer to an object of type {\tt Symbol}. The
+header file {\tt hoc.h} contains the definition of thi stype.
+
+The lexical analyzer recognizes variable names, looks them up
+in the symbol table, an ddecides whether they are variables
+({\tt VAR}) or built-ins ({\tt BLTIN}). The type returned by
+{\tt yylex} is one of these; both user-defined variables and
+pre-defined variables like {\tt PI} are {\tt VAR}'s.
+
+One of the properties of a variable is whether or not it has
+been assigned a value, so the use of an undefined variable
+can be reported as an error by {\tt yyparse}. The test for
+whether a variable is defined has to be in the grammar, not
+in the lexical analyzer. When a {\tt VAR} is recognized lexically,
+its context isn't yet known; we don't want a complaint that {\tt x}
+is undefined when the context is a perfectly legal one such as the
+left side of an assignment like {\tt x=1}.
+
+Here is the revised part of {\tt yylex}:
+\begincode
+int yylex(void)  /* hoc3 */
+...
+~       if (isalpha(c)) {
+~               Symbol *sp;
+~               char sbuf[100], *p = sbuf;
+~               do {
+~                       *p++ = c;
+~               } while ((c=getchar()) != EOF && isalnum(c));
+~               ungetc(c, stdin);
+~               *p = '\\0';
+~               if ((sp=lookup(sbuf)) == 0)
+~                       sp = install(sbuf, UNDEF, 0.0);
+~               yylval.sym = sp;
+~               return sp->type == UNDEF ? VAR : sp->type;
+~       }
+...
+\endcode
+
+{\tt main} has one extra line, which calls the initialization
+routine {\tt init} to install built-ins and pre-defined names
+like {\tt PI} in the symbol table. Here it is:
+\begincode
+int main(int argc, char *argv[])  /* hoc3 */
+{
+~       void fpecatch(int);
+\smallskip
+~       progname = argv[0];
+~       init();
+~       setjmp(begin);
+~       signal(SIGFPE, fpecatch);
+~       yyparse();
+~       return 0;
+}
+\endcode
+
+The only remaining file is {\tt math.c}. Some of the standard
+mathematical functions need an error-checking interface for
+messages and recovery---for example the standard function
+{\tt sqrt} silently returns zero if its argument is negative.
+The code in {\tt math.c} uses the error tests found in Section~2
+of the {\sl UNIX Programmer's Manual}. This is more reliable
+and portable than writing our own tests, since presumably the
+specific limitations of the routines are best reflected in the
+``official'' code. The header file {\tt<math.h>} contains type
+declarations for the standard mathematical functions.
+{\tt<errno.h>} contains names for the errors that can be incurred.
+Here is {\tt math.c}:
+\begincode
+#include "hoc.h"
+#include <math.h>
+#include <errno.h>
+\smallskip
+double errcheck(double d, char *s);
+\smallbreak
+double Log(double x)   { return errcheck(log(x),   "log");   }
+double Log10(double x) { return errcheck(log10(x), "log10"); }
+double Exp(double x)   { return errcheck(exp(x),   "exp");   }
+double Sqrt(double x)  { return errcheck(sqrt(x),  "sqrt");  }
+double Pow(double x, double y) {
+~                        return errcheck(pow(x,y), "pow");   }
+\smallbreak
+double integer(double x) { return (double)(long) x; }
+\smallbreak
+double errcheck(double d, char *s)
+{ /* check result of library call */
+~       if (errno == EDOM) {
+~               errno = 0;
+~               execerror(s, "argument out of domain");
+~       } else if (errno == ERANGE) {
+~               errno = 0;
+~               execerror(s, "result out of range");
+~       }
+~       return d;
+}
+\endcode
+
+An interesting (and ungrammatical) diagnostic appears when
+we run {\tt yacc} on the new grammar:
+\begincode
+$ yacc hoc.y
+conflicts: 1 shift/reduce
+$
+\endcode
+\noindent
+The ``shift/reduce'' message means that the {\tt hoc3} grammar
+is ambiguous: the single line of input
+\begincode
+x = 1
+\endcode
+\noindent
+can be parsed in two ways:
+\medskip
+\centerline{\epsfbox{unixdev-2.mps}\hfil\epsfbox{unixdev-3.mps}}
+\medskip
+\noindent
+The parser can decide that the {\it asgn\/} should be reduced to
+an {\it expr\/} and then to a {\it list}, as in the parse tree on
+the left, or it can decide to use the following {\tt\\n} immediately
+(``shift'') and convert the whole thing to a {\it list\/} without
+the intermediate rule, as in the tree on the right. Given the
+ambiguity, {\tt yacc} chooses to shift, since this is almost always
+the right thing to do with real grammars. You should try to understand
+such messages, to be sure that {\tt yacc} has made the right decision.%
+\footnote{$\dag$}{\ninepoint The {\tt yacc} message ``reduce/reduce
+conflict'' indicates a serious problem, more often the symptom of an
+outright error in the grammar than an intentional ambiguity.}
+Running {\tt yacc} with the option {\tt-v} produces a voluminous
+file called {\tt y.output} that hints at the origin of conflicts.
+
+\exercise 8-5.
+As {\tt hoc3} stands, it's legal to say {\tt PI = 3}. Is this a good
+idea? How would you change {\tt hoc3} to prohibit assignment to
+``constants''?\endexercise
+
+\exercise 8-6.
+Add the built-in function {\tt atan2(y,x)}, which returns the angle
+whose tangent is {\tt y/x}. Add the built-in {\tt rand()}, which
+returns a floating point random variable uniformly distributed on
+the interval $(0,1)$. How do you have to change the grammar to allow
+for built-ins with different numbers of arguments?\endexercise
+
+\exercise 8-7.
+How would you add a facility to execute commands from within {\tt hoc},
+similar to the {\tt!}~feature of other {\sc UNIX} programs?\endexercise
+
+\exercise 8-8.
+Revise the code in {\tt math.c} to use a table instead of the set
+of essentially identical functions that we presented.\endexercise
+
+\subsect Another digression on {\tt make}.
+Since the program for {\tt hoc3} now lives on five files, not one,
+the {\tt Makefile} is more complicated:
+\begincode
+YFLAGS = -d                   # force creation of y.tab.h
+OBJS = hoc.o init.o math.o symbol.o        # abbreviation
+\medskip
+hoc3: $(OBJS)
+~       $(CC) $(OBJS) -lm -o hoc3
+\medskip
+hoc.o: hoc.h
+\medskip
+init.o symbol.o: hoc.h y.tab.h
+\medskip
+pr:
+~       @pr hoc.y hoc.h init.c math.c symbol.c Makefile
+\medskip
+clean:
+~       rm -f $(OBJS) y.tab.[ch]
+\endcode
+\noindent
+The {\tt YFLAGS\kern.5ex=\kern.5ex-d} line adds the option {\tt-d}
+to the {\tt yacc} command line generated by {\tt make}; this tells
+{\tt yacc} to produce the {\tt y.tab.h} file of {\tt\#define} statements.
+The {\tt OBJS\kern.5ex=\kern.5ex\rm...} line defines a shorthand for a
+construct to be used several times subsequently. The syntax is not the
+same as for shell variables---the parentheses are mandatory. The flag
+{\tt -lm} causes the math library to be searched for the mathematical
+functions.
+
+{\tt hoc3} now depends on four {\tt.o} files; some of the {\tt.o} files
+depend on {\tt.h} files. Given these dependencies, {\tt make} can deduce
+what recompilation is needed after changes are made to any of the files
+involved. If you want to see what {\tt make} will do without actually
+running the processes, try
+\begincode
+$ make -n
+\endcode
+\noindent
+On the other hand, if you want to force the file times into a consistent
+state, the {\tt-t} (``touch'') option will update them without doing
+any compilation steps.
+
+Notice that we have added not only a set of dependencies for the
+source files but miscellaneous utility routines as well, all neatly
+encapsulated in one place. By default, {\tt make} makes the first
+thing listed in the {\tt Makefile}, but if you name an item that
+labels a dependency rule, like {\tt symbol.o} or {\tt pr}, that
+will be made instead. An empty dependency is taken to mean that
+the item is never ``up to date,'' so that action will always be done
+when requested. Thus
+\begincode
+$ make pr | lpr
+\endcode
+\noindent
+produces the listing you asked for on a line printer. (The leading
+{\tt @} in ``{\tt @pr}'' suppresses the echo of the command being
+executed by {\tt make}.) And
+\begincode
+$ make clean
+\endcode
+\noindent
+removes the {\tt yacc} output files and the {\tt.o} files.
+
+This mechanism of empty dependencies in the {\tt Makefile} is
+often preferable to a shell file as a way to keep all the related
+computations in a single file. And {\tt make} is not restricted
+to program development---it is valuable for packaging any set of
+operations that have time dependencies.
+
+\subsect A digression on {\tt lex}.
+The program {\tt lex} creates lexical analyzers in a manner analogous
+to the way that {\tt yacc} creates parsers: you write a specification
+of the lexical rules of your language, using regular expressions and
+fragments of C to be executed when a matching string is found.
+{\tt lex} translates that into a recognizer. {\tt lex} and {\tt yacc}
+cooperate by the same mechanism as the lexical analyzers we have
+already written. We are not going into great detail on {\tt lex} here;
+the following discussion is mainly to interest you in learning more.
+%See the reference manual for {\tt lex} in Volume~2B of the {\sl UNIX
+%Programmer's Manual}.
+
+First, here is the {\tt lex} program, from the file {\tt lex.l};
+it replaces the function {\tt yylex} that we have used so far.
+\begincode
+%{
+#include "hoc.h"
+#include "y.tab.h"
+extern int lineno;
+%}
+%%
+[ \\t]   { ; }   /* skip blanks and tabs */
+[0-9]+\\.?|[0-9]*\\.[0-9]+ {
+~       sscanf(yytext, "%lf", &yylval.val); return NUMBER; }
+[a-zA-Z][a-zA-Z0-9]* {
+~       Symbol *s;
+~       if ((s = lookup(yytext)) == 0)
+~               s = install(yytext, UNDEF, 0.0);
+~       yylval.sym = s;
+~       return s->type == UNDEF ? VAR : s->type; }
+\\n      { lineno++; return '\\n'; }
+.       { return yytext[0]; }   /* everything else */
+\endcode
+\noindent
+Each ``rule'' is a regular expression like those in {\tt egrep}
+or {\tt awk}, except that {\tt lex} recognizes C-style escapes
+like {\tt\\t} and {\tt\\n}. The action is enclosed in braces.
+The rules are attempted in order, and constructs like {\tt*}
+and {\tt+} match as long a string as possible. If the rule matches
+the next part of the input, the action is performed. The input
+string that matched is accessible in a {\tt lex} string called
+{\tt yytext}.
+
+The {\tt Makefile} has to be changed to use {\tt lex}:
+\begincode
+YFLAGS = -d
+OBJS = hoc.o lex.o init.o math.o symbol.o
+\medskip
+hoc3: $(OBJS)
+~       $(CC) $(OBJS) -lm -ll -o hoc3
+\medskip
+hoc.o: hoc.h
+\medskip
+lex.o init.o symbol.o: hoc.h y.tab.h
+...
+\endcode
+\noindent
+Again, {\tt make} knows how to get from a {\tt.l} file to the
+proper {\tt.o}; all it needs from us is the dependency information.
+(We also have to add the {\tt lex} library {\tt-ll} to the list
+searched by {\tt cc} since the {\tt lex}-generated recognizer
+is not self-contained.) The output is spectacular and completely
+automatic:
+\begincode
+$ make
+yacc -d hoc.y
+conflicts: 1 shift/reduce
+cc  -c y.tab.c
+rm y.tab.c
+mv y.tab.o hoc.o
+lex  lex.l
+cc  -c lex.yy.c
+rm lex.yy.c
+mv lex.yy.o lex.o
+cc  -c init.c
+cc  -c math.c
+cc  -c symbol.c
+cc hoc.o lex.o init.o math.o symbol.o -lm -ll -o hoc3
+$
+\endcode
+
+If a signle file is changed, the single command {\tt make} is
+enough to make an up-to-date version:
+\begincode
+$ touch lex.l               \it Change modified-time of \tt lex.l
+$ make
+lex  lex.l
+cc  -c lex.yy.c
+rm lex.yy.c
+mv lex.yy.o lex.o
+cc hoc.o lex.o init.o math.o symbol.o -lm -ll -o hoc3
+$
+\endcode
+
+We debated for quite a while whether to treat {\tt lex} as a
+digression, to be illustrated briefly and then dropped, or as
+the primary tool for lexical analysis once the language got
+complicated. There are arguments on both sides. The main problem
+with {\tt lex} (aside from requiring that the user learn yet
+another language) is that it tends to be slow to run and to
+produce bigger and slower recognizers than the equivalent C
+versions. It is also somewhat harder to adapt its input mechanism
+if one is doing anything unusual, such as error recovery or
+even input from files. None of these issues is serious in the
+context of {\tt hoc}. The main limitation is space: it takes
+more pages to describe the {\tt lex} version, so (regretfully)
+we will revert to C for subsequent lexical analysis. It is a
+good exercise to do the {\tt lex} versions, however.
+
+\exercise 8-9.
+Compare the sizes of the two versions of {\tt hoc3}.
+Hint: see {\tt size}(1).\endexercise
 
 \bye

@@ -13,7 +13,7 @@ conform with ANSI C.
   (four-function calculator, `hoc.y`)
 - source of [hoc at stage 2](./stage2/hoc.y)
   (add unary minus and variables `a` to `z`)
-- source of hoc at stage 3
+- source of [hoc at stage 3](./stage3/)
   (add arbitrarily named variables and built-ins)
 - source of hoc at stage 4
   (internal change: generate code)
