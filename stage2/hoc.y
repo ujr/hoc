@@ -49,7 +49,7 @@ jmp_buf begin;
 void warning(char *s, char *t);
 void fpecatch(int signum);
 
-int main(int argc, char *argv[])  /* hoc1 */
+int main(int argc, char *argv[])  /* hoc2 */
 {
         UNUSED(argc);
         progname = argv[0];
@@ -59,7 +59,7 @@ int main(int argc, char *argv[])  /* hoc1 */
         return 0;
 }
 
-int yylex(void)  /* hoc1 */
+int yylex(void)  /* hoc2 */
 {
         int c;
         while ((c = getchar()) == ' ' || c == '\t')

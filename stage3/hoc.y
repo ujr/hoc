@@ -60,7 +60,7 @@ jmp_buf begin;
 void warning(const char *s, const char *t);
 void fpecatch(int signum);
 
-int main(int argc, char *argv[])  /* hoc1 */
+int main(int argc, char *argv[])  /* hoc3 */
 {
         UNUSED(argc);
         progname = argv[0];
@@ -71,7 +71,7 @@ int main(int argc, char *argv[])  /* hoc1 */
         return 0;
 }
 
-int yylex(void)  /* hoc1 */
+int yylex(void)  /* hoc3 */
 {
         int c;
         while ((c = getchar()) == ' ' || c == '\t')
@@ -83,13 +83,15 @@ int yylex(void)  /* hoc1 */
                 scanf("%lf", &yylval.val);
                 return NUMBER;
         }
-        if (isalpha(c)) {
+        if (isalpha(c)) {  /* name */
                 Symbol *sp;
                 char sbuf[100], *p = sbuf;
-                do {
-                        *p++ = c;
-                } while ((c = getchar()) != EOF && isalnum(c));
+                char *end = sbuf + sizeof(sbuf);
+                do { if (p < end) *p++ = c; }
+                while ((c = getchar()) != EOF && isalnum(c));
                 ungetc(c, stdin);
+                if (p >= end)
+                        execerror("name too long", 0);
                 *p = '\0';
                 if ((sp = lookup(sbuf)) == 0)
                         sp = install(sbuf, UNDEF, 0.0);

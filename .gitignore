@@ -1,6 +1,7 @@
 *.o
 *.a
 .*.swp
+y.tab.h
 stage1/hoc1
 stage2/hoc2
 stage3/hoc3
