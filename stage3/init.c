@@ -38,7 +38,7 @@ void init(void)  /* install constants and built-ins in symtab */
   Symbol *sp;
 
   for (i = 0; consts[i].name; i++)
-    install(consts[i].name, VAR, consts[i].cval);
+    install(consts[i].name, CONST, consts[i].cval);
   for (i = 0; builtins[i].name; i++) {
     sp = install(builtins[i].name, BLTIN, 0.0);
     sp->u.ptr = builtins[i].func;

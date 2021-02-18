@@ -16,7 +16,7 @@ void yyerror(char *s);
         Symbol *sym;   /* symbol table pointer */
 }
 %token  <val>   NUMBER
-%token  <sym>   VAR BLTIN UNDEF
+%token  <sym>   CONST VAR BLTIN UNDEF
 %type   <val>   expr asgn
 %right  '='
 %left   '+' '-'        /* left associative, same precedence */
@@ -30,7 +30,10 @@ list:     /* nothing */
         | list expr  '\n'  { printf("\t%.8g\n", $2); prev->u.val = $2; }
         | list error '\n'  { yyerrok; }
         ;
-asgn:     VAR '=' expr   { $$ = $1->u.val = $3; $1->type = VAR; }
+asgn:     VAR '=' expr   { if ($1->type == CONST)
+                               execerror("cannot assign to const", $1->name);
+                           $1->type = VAR;  /* no longer UNDEF */
+                           $$ = $1->u.val = $3; }
         ;
 expr:     NUMBER         { $$ = $1; }
         | VAR            { if ($1->type == UNDEF)
@@ -102,7 +105,9 @@ int yylex(void)  /* hoc3 */
                 if ((sp = lookup(sbuf)) == 0)
                         sp = install(sbuf, UNDEF, 0.0);
                 yylval.sym = sp;
-                return sp->type == UNDEF ? VAR : sp->type;
+                return sp->type == UNDEF || sp->type == CONST
+                        ? VAR  /* CONST and UNDEF are grammatically VARs */
+                        : sp->type;
         }
         if (c == '\n')
                 lineno++;
