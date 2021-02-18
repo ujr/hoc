@@ -7,6 +7,7 @@
 #include <stdio.h>
 #define UNUSED(x) ((void)(x))
 extern double Pow(double x, double y);
+Symbol  *prev;  /* previous result */
 int yylex(void);
 void yyerror(char *s);
 %}
@@ -26,7 +27,7 @@ void yyerror(char *s);
 list:     /* nothing */
         | list       '\n'
         | list asgn  '\n'
-        | list expr  '\n'  { printf("\t%.8g\n", $2); }
+        | list expr  '\n'  { printf("\t%.8g\n", $2); prev->u.val = $2; }
         | list error '\n'  { yyerrok; }
         ;
 asgn:     VAR '=' expr   { $$ = $1->u.val = $3; $1->type = VAR; }
@@ -65,6 +66,7 @@ int main(int argc, char *argv[])  /* hoc3 */
         UNUSED(argc);
         progname = argv[0];
         init();
+        prev = install("$", VAR, 0.0);
         setjmp(begin);
         signal(SIGFPE, fpecatch);
         yyparse();
@@ -82,6 +84,10 @@ int yylex(void)  /* hoc3 */
                 ungetc(c, stdin);
                 scanf("%lf", &yylval.val);
                 return NUMBER;
+        }
+        if (c == '$') {  /* previous result */
+                yylval.sym = prev;
+                return VAR;
         }
         if (isalpha(c)) {  /* name */
                 Symbol *sp;
