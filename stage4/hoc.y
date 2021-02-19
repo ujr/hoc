@@ -6,6 +6,7 @@
 #define code3(c1,c2,c3) code(c1,#c1); code(c2,#c2); code(c3,#c3)
 int yylex(void);
 void yyerror(char *s);
+Symbol  *prev;         /* previous result */
 %}
 %union {
         Symbol *sym;   /* symbol table pointer */
@@ -21,7 +22,8 @@ void yyerror(char *s);
 list:     /* nothing */
         | list       '\n'
         | list asgn  '\n'    { code2(drop, STOP); return 1; }
-        | list expr  '\n'    { code2(print, STOP); return 1; }
+        | list expr  '\n'    { code3(varpush, (Inst) prev, assign);
+                               code2(print, STOP); return 1; }
         | list error '\n'    { yyerrok; }
         ;
 asgn:     VAR '=' expr       { code3(varpush, (Inst) $1, assign); }
@@ -59,6 +61,7 @@ int main(int argc, char *argv[])  /* hoc4 */
         UNUSED(argc);
         progname = argv[0];
         init();
+        prev = install("$", VAR, 0.0);
         setjmp(begin);
         signal(SIGFPE, fpecatch);
         for (initcode(); yyparse(); initcode())
@@ -79,6 +82,10 @@ int yylex(void)  /* hoc4 */
                 scanf("%lf", &d);
                 yylval.sym = install("", NUMBER, d);
                 return NUMBER;
+        }
+        if (c == '$') {  /* previous result */
+                yylval.sym = prev;
+                return VAR;
         }
         if (isalpha(c)) {  /* name */
                 Symbol *sp;
