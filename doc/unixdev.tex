@@ -875,7 +875,7 @@ We will also add to the {\tt Makefile} the fact that these
 files depend on {\tt hoc.h}, so that when it changes, the
 necessary recompilations are done too. Here is {\tt hoc.h}:
 \begincode
-struct Symbol {            /* symbol table entry */
+typedef struct Symbol {  /* symbol table entry */
 ~       char    *name;
 ~       short   type;            /* VAR, BLTIN, UNDEF */
 ~       union {
@@ -884,8 +884,6 @@ struct Symbol {            /* symbol table entry */
 ~       } u;
 ~       struct Symbol   *next;   /* to link to another */
 } Symbol;
-\smallskip
-typedef struct Symbol Symbol;
 \smallskip
 Symbol *install(char *s, int t, double d);
 Symbol *lookup(char *s);
@@ -1017,6 +1015,7 @@ in the grammar that make use of it. Here is {\tt hoc.y}:
 \begincode
 %{
 #include "hoc.h"
+#include <stdio.h>
 extern double Pow();
 %}
 %union {
@@ -1045,6 +1044,7 @@ expr:     NUMBER
 ~                   execerror("undefined variable", $1->name);
 ~               $$ = $1->u.val; }
 ~       | asgn
+\goodbreak
 ~       | BLTIN '(' expr ')'  { $$ = (*($1->u.ptr))($3); }
 ~       | expr '+' expr  { $$ = $1 + $3; }
 ~       | expr '-' expr  { $$ = $1 - $3; }
@@ -1052,6 +1052,7 @@ expr:     NUMBER
 ~       | expr '/' expr  { if ($3 == 0.0)
 ~                              execerror("division by zero", "");
 ~                          $$ = $1 / $3; }
+\goodbreak
 ~       | expr '^' expr  { $$ = Pow($1, $3); }
 ~       | '(' expr ')'   { $$ = $2; }
 ~       | '-' expr  %prec UNARYPM  { $$ = -$2; }
@@ -1118,6 +1119,9 @@ int yylex(void)  /* hoc3 */
 routine {\tt init} to install built-ins and pre-defined names
 like {\tt PI} in the symbol table. Here it is:
 \begincode
+#include <setjmp.h>
+#include <signal.h>
+\medbreak
 int main(int argc, char *argv[])  /* hoc3 */
 {
 ~       void fpecatch(int);
@@ -1147,9 +1151,9 @@ Here is {\tt math.c}:
 #include "hoc.h"
 #include <math.h>
 #include <errno.h>
-\smallskip
+\medbreak
 double errcheck(double d, char *s);
-\smallbreak
+\medbreak
 double Log(double x)   { return errcheck(log(x),   "log");   }
 double Log10(double x) { return errcheck(log10(x), "log10"); }
 double Exp(double x)   { return errcheck(exp(x),   "exp");   }
@@ -1158,13 +1162,15 @@ double Pow(double x, double y) {
 ~                        return errcheck(pow(x,y), "pow");   }
 \smallbreak
 double integer(double x) { return (double)(long) x; }
-\smallbreak
+\medbreak
 double errcheck(double d, char *s)
 { /* check result of library call */
 ~       if (errno == EDOM) {
 ~               errno = 0;
 ~               execerror(s, "argument out of domain");
-~       } else if (errno == ERANGE) {
+~       }
+\goodbreak
+~       else if (errno == ERANGE) {
 ~               errno = 0;
 ~               execerror(s, "result out of range");
 ~       }
@@ -1181,11 +1187,7 @@ $
 \endcode
 \noindent
 The ``shift/reduce'' message means that the {\tt hoc3} grammar
-is ambiguous: the single line of input
-\begincode
-x = 1
-\endcode
-\noindent
+is ambiguous: the single line of input {\tt x\kern.5ex=\kern.5ex 1}
 can be parsed in two ways:
 \medskip
 \centerline{\epsfbox{unixdev-2.mps}\hfil\epsfbox{unixdev-3.mps}}
@@ -1407,5 +1409,473 @@ good exercise to do the {\tt lex} versions, however.
 \exercise 8-9.
 Compare the sizes of the two versions of {\tt hoc3}.
 Hint: see {\tt size}(1).\endexercise
+
+
+\section Stage 4: Compmilation into a machine
+
+We are heading towards {\tt hoc5}, an interpreter for a language
+with control flow. {\tt hoc4} is an intermediate step, providing
+the same functions as {\tt hoc3}, but implemented within the
+interpreter framework of {\tt hoc5}. We actually wrote {\tt hoc4}
+this way, since it gives us two programs that should behave
+identically, which is valuable for debugging. As the input is
+parsed, {\tt hoc4} generates code for a simple computer instead
+of immediately computing answers. Once the end of a statement is
+reached, the generated code is executed (``interpreted'') to
+compute the desired result.
+
+The simple computer is a {\it stack machine\/}: when an operand
+is encountered, it is pushed onto a stack (more precisely, code
+is generated to push it onto a stack); most operators operate on
+items on the top of the stack. For example, to handle the assignment
+\begincode
+x = 2 * y
+\endcode
+\noindent
+the following code is generated:
+\begincode
+constpush          \it Push a constant onto stack\tt
+~ 2                \it\quad... the constant\tt 2
+varpush            \it Push symbol table pointer onto stack\tt
+~ y                \it\quad... for the variable\tt y
+eval               \it Evaluate: replace pointer by value\tt
+mul                \it Multiply top two items; product replaces them\tt
+varpush            \it Push symbol table pointer onto stack\tt
+~ x                \it\quad... for the variable\tt x
+assign             \it Store value in variable, pop pointer\tt
+pop                \it Clear top value from stack\tt
+STOP               \it End of instruction sequence
+\endcode
+\noindent
+When this code is executed, the expression is evaluated and
+the result is stored in {\tt x}, as indicated by the comments.
+The final {\tt pop} clears the value off the stack because it
+is not needed any longer.
+
+Stack machines usually result in simple interpreters, and ours
+is no exception: it's just an array containing operators and
+operands. The operators are the machine instructions; each is a
+function call with its arguments, if any, following the instruction.
+Other operands may already be on the stack, as they were in the
+example above.
+
+The symbol table code for {\tt hoc4} is identical to that for
+{\tt hoc3}; the initialization in {\tt init.c} and the mathematical
+functions in {\tt math.c} are the same as well. The grammar is the
+same as for {\tt hoc3}, but the actions are quite different.
+Basically, each action generates machine instructions and any
+arguments that go with them. For example, three items are generated
+for a {\tt VAR} in an expression: a {\tt varpush} instruction,
+the symbol table pointer for the variable, and an {\tt eval}
+instruction that will replace the symbol table pointer by its
+value when executed. The code for `{\tt*}' is just {\tt mul},
+since the operands for that will already bo on the stack.
+
+\begincode
+%{
+#include "hoc.h"
+#define code2(c1,c2)    code(c1); code(c2)
+#define code3(c1,c2,c3) code(c1); code(c2); code(c3)
+%}
+\smallbreak
+%union{
+~       Symbol  *sym;   /* symbol table pointer */
+~       Inst    *inst;  /* machine instruction */
+}
+\smallbreak
+%token  <sym>   NUMBER VAR BLTIN UNDEF
+%right  '='
+%left   '+' '-'
+%left   '*' '-'
+%left   UNARYPM
+%right  '^'     /* exponentiation */
+\smallbreak
+%%
+list:     /* nothing */
+~       | list       '\\n'
+~       | list asgn  '\\n'  { code2(drop, STOP); return 1; }
+~       | list expr  '\\n'  { code2(print, STOP); return 1; }
+~       | list error '\\n'  { yyerrok; }
+~       ;
+\smallbreak
+asgn:     VAR '=' expr   { code3(varpush, (Inst)$1, assign); }
+~       ;
+\smallbreak
+expr:     NUMBER         { code2(constpush, (Inst)$1); }
+~       | VAR            { code3(varpush, (Inst)$1, eval); }
+~       | asgn
+~       | BLTIN '(' expr ')' { code2(bltin, (void*)$1->u.ptr); }
+~       | expr '+' expr  { code(add); }
+~       | expr '-' expr  { code(sub); }
+~       | expr '*' expr  { code(mul); }
+~       | expr '/' expr  { code(div); }
+~       | expr '^' expr  { code(power); }
+~       | '(' expr ')'
+~       | '-' expr  %prec UNARYPM  { code(negate); }
+~       | '+' expr  %prec UNARYPM
+~       ;
+%%
+~       /* end of grammar */
+...
+\endcode
+\noindent
+{\tt Inst} is the data type of a machine instruction (a pointer to
+a function returning an {\tt int}), which we will return to shortly.
+Notice that the arguments to {\tt code} are function names, that is,
+pointers to functions, or other values that are coerced to function
+pointers.
+
+We have changed {\tt main} somewhat. The parser now returns after
+each statement or expression; the code that it generated is executed.
+{\tt yyparse} returns zero at end of file.
+\begincode
+#include <ctype.h>
+#include <setjmp.h>
+#include <signal.h>
+#include <stdio.h>
+\medbreak
+int main(int argc, char *argv[])  /* hoc4 */
+{
+~       void fpecatch(int);
+\smallskip
+~       progname = argv[0];
+~       init();
+~       setjmp(begin);
+~       signal(SIGFPE, fpecatch);
+\smallskip
+~       for (initcode(); yyparse(); initcode())
+~               execute(prog);
+\smallskip
+~       return 0;
+}
+\endcode
+
+The lexical analyzer is only a little different. The main change
+is that numbers have to be preserved, not used immediately. The
+easiest way to do this is to install them in the symbol table
+along with the variables. Here is the changed part of {\tt yylex}:
+\begincode
+int yylex(void)  /* hoc4 */
+...
+~       if (c == '.' || isdigit(c)) {  /* number */
+~               double d;
+~               ungetc(c, stdin);
+~               scanf("%lf", &d);
+~               yylval.sym = install("", NUMBER, d);
+~               return NUMBER;
+~       }
+...
+\endcode
+
+Each element on the interpreter stack is either a floating point
+value or a pointer to a symbol table entry; the stack data type
+is a union of these. The machine itself is an array of pointers
+that point either to routines like {\tt mul} that perform an
+operation, or to data in the symbol table.
+The header file {\tt hoc.h} has to be augmented to include these
+data structures and function declarations for the interpreter,
+so they will be known where necessary throughout the program.
+(By the way, we chose to put all this information in one file
+instead of two. In a larger program, it might be better to divide
+the header information into several files so that each is included
+only where really needed.) Here is {\tt hoc.h}:
+
+\begincode
+typedef struct Symbol {  /* symbol table entry */
+~       char   *name;
+~       short   type;    /* VAR, BLTIN, UNDEF */
+~       union {
+~               double  val;         /* if VAR */
+~               double  (*ptr)();    /* if BLTIN */
+~       } u;
+~       struct Symbol   *next;  /* to link to another */
+} Symbol;
+\medbreak
+Symbol *install(char *s, int t, double d);
+Symbol *lookup(char *s);
+\medbreak
+void init(void);
+void execerror(char *s, char *t);
+\medbreak
+typedef union Datum {    /* interpreter stack type */
+~       double  val;     /* for literal numbers */
+~       Symbol *sym;     /* for variables */
+} Datum;
+\medbreak
+typedef void (*Inst)();  /* machine instruction */
+#define STOP (Inst) 0
+\medbreak
+extern  Inst prog[];
+extern  void constpush(), varpush(), drop();
+extern  void add(), sub(), mul(), divide(), power(), negate();
+extern  void eval(), assign(), bltin(), print();
+\medbreak
+extern  void initcode(void);
+extern  Inst *code(Inst f);
+extern  void execute(Inst *p);
+\endcode
+
+\noindent
+[Renamed {\tt div} to {\tt divide} to avoid collision
+with {\tt div}(3) from the standard library.]
+
+The routines that execute the machine instructions and
+manipulate the stack are kept in a new file called {\tt code.c}.
+Since it is about 150 lines long, we will show it in pieces.
+
+\begincode
+#include "hoc.h"
+#include "y.tab.h"
+#include <stdio.h>
+\medbreak
+#define NSTACK  256
+static  Datum   stack[NSTACK];  /* the stack */
+static  Datum  *stackp;         /* next free spot on stack */
+\medbreak
+#define NPROG   2000
+static  Inst    prog[NPROG];    /* the machine */
+static  Inst   *progp;          /* next free spot (code gen) */
+static  Inst   *pc;             /* program counter (runtime) */
+\medbreak
+void initcode(void)  /* initialize for code generation */
+{
+~       stackp = stack;
+~       progp = prog;
+}
+\endcode
+\noindent
+The stack is manipulated by calls to {\tt push} and {\tt pop}:
+\begincode
+static void push(Datum d)  /* push d onto stack */
+{
+~       if (stackp >= &stack[NSTACK])
+~               execerror("stack overflow", 0);
+~       *stackp++ = d;
+}
+\medskip
+static Datum pop(void)  /* pop and return top from stack */
+{
+~       if (stackp <= stack)
+~               execerror("stack underflow", 0);
+~       return *--stackp;
+}
+\endcode
+
+The machine is generated during parsing by calls to the function
+{\tt code}, which simply puts an instruction into the next free
+spot in the array {\tt prog}. It returns the location of the
+instruction (which is not used in {\tt hoc4}).
+\begincode
+Inst *code(Inst f)  /* install one instruction or operand */
+{
+~       Inst *oprogp = progp;
+~       if (progp >= &prog[NPROG])
+~               execerror("program too big", 0);
+~       *progp++ = f;
+~       return oprogp;
+}
+\endcode
+
+Execution of the machine is simple; in fact, it's rather neat how
+small the routine is that ``runs'' the machine once it's set up:
+\begincode
+void execute(Inst *p)  /* run the machine */
+{
+~       for (pc = p; *pc != STOP; )
+~               (*(*pc++))();
+}
+\endcode
+\noindent
+Each cycle executes the function pointed to by the instruction
+pointed to by the program counter {\tt pc}, and increments {\tt pc}
+so it's ready for the next instruction. An instruction with opcode
+{\tt STOP} terminates the loop. Some instructions, such as
+{\tt constpush} and {\tt varpush}, also increment {\tt pc} to step
+over any arguments that follow the instruction.
+\begincode
+void constpush(void)  /* push constant onto stack */
+{
+~       Datum d;
+~       d.val = ((Symbol *) *pc++)->u.val;
+~       push(d);
+}
+\medbreak
+void varpush(void)  /* push variable onto stack */
+{
+~       Datum d;
+~       d.sym = (Symbol *) (*pc++);
+~       push(d);
+}
+\medbreak
+void drop(void)  /* pop and discard top item from stack */
+{
+~       (void) pop();
+}
+\endcode
+\noindent
+[{\tt drop} is the instruction form of {\tt pop}; in the book,
+{\tt pop} is used as an instruction, but this fails with
+recent C~compilers because it has a different signature.]
+
+The rest of the machine is easy. For instance, the arithmetic
+operations are all basically the same, and were created by
+editing a single prototype. Here is {\tt add}:
+
+\begincode
+void add(void)  /* add top two elems on stack */
+{
+~       Datum d2 = pop();
+~       Datum d1 = pop();
+~       d1.val += d2.val;
+~       push(d1);
+}
+\endcode
+
+\noindent
+The remaining routines are equally simple.
+\begincode
+void eval(void)  /* evaluate variable on stack */
+{
+~       Datum d = pop();
+~       if (d.sym->type == UNDEF)
+~               execerror("undefined variable", d.sym->name);
+~       d.val = d.sym->u.val;
+~       push(d);
+}
+\medbreak
+void assign(void)  /* assign to top var next value */
+{
+~       Datum d1 = pop();
+~       Datum d2 = pop();
+~       if (d1.sym->type != VAR && d1.sym->type != UNDEF)
+~               execerror("assignment to non-variable",
+~                         d1.sym->name);
+~       d1.sym->u.val = d2.val;
+~       d1.sym->type = VAR;
+~       push(d2);  /* push back value because asgn is an expr */
+}
+\medbreak
+void print(void)  /* pop top value from stack, print it */
+{
+~       Datum d = pop();
+~       printf("\\t%.8g\\n", d.val);
+}
+\medbreak
+void bltin(void)  /* evaluate built-in on top of stack */
+{
+~       Datum d = pop();
+~       d.val = (*(double (*)())(void*)(*pc++))(d.val);
+~       push(d);
+}
+\endcode
+
+\noindent
+The hardest part is the cast in {\tt bltin}, which says that
+{\tt*pc} should be cast to ``pointer to function returning a
+{\tt double},'' and that function executed with {\tt d.val}
+as argument. [The intermediate {\tt(void*)} cast silences
+a compiler warning because an {\tt Inst} returns {\tt int},
+not {\tt double}.]
+
+The diagnostics in {\tt eval} and {\tt assign} should never
+occur if everything is working properly; we left them in in
+case some program error causes the stack to be curdled.
+The overhead in time and space is small compared to the benefit
+of detecting the error if we make a careless change in the
+program. (We did, several times).
+
+C's ability to manipulate pointers to functions leads to
+compact and efficient code. An alternative, to make the
+operators constants and combine the semantic functions into
+a big {\tt switch} statement in {\tt execute}, is straightforward
+and is left as an exercise.
+
+\subsect A third digression on {\tt make}.
+As the source code for {\tt hoc} grows, it becomes more and
+more valuable to keep track mechanically of what has changed
+and what depends on that. The beauty of {\tt make} is that
+it automates jobs that we would otherwise do by hand (and get
+wrong sometimes) or by creating a specialized shell file.
+
+We have made two improvements to the {\tt Makefile}. The first
+is based on the observation that although several files depend
+on the {\tt yacc}-defined constants in {\tt y.tab.h}, there's
+no need to recompile them unless the constants change---changes
+to the C~code in {\tt hoc.y} don't affect anything else.
+In the new {\tt Makefile} the {\tt.o} files depend on a new
+file {\tt x.tab.h} that is updated only when the {\it contents\/}
+of {\tt y.tab.h} change. The second improvement is to make the
+rule for {\tt pr} (printing the source files) depend on the source
+files, so that only changed files are printed.
+
+The first of these changes is a great time-saver for larger
+programs when the grammar is static but the semantics are not
+(the usual situation). The second change is a great paper-saver.
+
+Here is the new {\tt Makefile} for {\tt hoc4}:
+\begincode
+YFLAGS = -d
+OBJS = hoc.o code.o init.o math.o symbol.o
+\medskip
+hoc4: $(OBJS)
+~       $(CC) $(OBJS) -o hoc4 -lm
+\medskip
+hoc.o code.o init.o symbol.o: hoc.h
+code.o init.o symbol.o: x.tab.h
+\medskip
+x.tab.h: y.tab.h
+~       -cmp -s x.tab.h y.tab.h || cp y.tab.h x.tab.h
+\medskip
+pr: hoc.y hoc.h code.c init.c math.c symbol.c
+~       @pr $?
+~       @touch pr
+\medskip
+clean:
+~       rm -f $(OBJS) [xy].tab.[ch]
+\endcode
+
+\noindent
+The `{\tt-}' before {\tt cmp} tells {\tt make} to carry on even
+if the {\tt cmp} fails; this permits the process to work even
+if {\tt x.tab.h} doesn't exist. (The {\tt-s} option causes
+{\tt cmp} to produce no output but set the exit status.)
+The symbol {\tt\$?} expands into the list of items from the
+rule that are not up to date. Regrettably, {\tt make}'s
+notational conventions are at best loosely related to those
+of the shell.
+
+To illustrate how these operate, suppose that everything is
+up to date. Then:
+\begincode
+$ touch hoc.y                 \it Change date of\tt hoc.y
+\smallbreak
+$ make
+yacc -d hoc.y
+conflicts: 1 shift/reduce
+cc  -c y.tab.c
+rm y.tab.c
+mv y.tab.o hoc.o
+cmp -s x.tab.h y.tab.h || cp y.tab.h x.tab.h
+cc hoc.o code.o init.o math.o symbol.o -o hoc4 -lm
+\smallbreak
+$ make -n pr                  \it Print changed files\tt
+pr hoc.y
+touch pr
+$
+\endcode
+\noindent
+Notice that nothing was recompiled except {\tt hoc.y}, because
+the {\tt y.tab.h} file was the same as the previous one.
+
+\exercise 8-10.
+Make the sizes of {\tt stack} and {\tt prog} dynamic, so that
+{\tt hoc4} never runs out of space if memory can be obtained
+by calling {\tt malloc}.\endexercise
+
+\exercise 8-11.
+Modify {\tt hoc4} to use a {\tt switch} on the type of operation
+in {\tt execute} instead of calling functions. How do the versions
+compare in lines of source code and execution spead? How are they
+likely to compare in case of maintenance and growth?\endexercise
 
 \bye

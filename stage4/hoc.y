@@ -1,83 +1,72 @@
 %{
 #include "hoc.h"
-#include <math.h>
-#include <stdio.h>
 #define UNUSED(x) ((void)(x))
-extern double Pow(double x, double y);
-Symbol  *prev;  /* previous result */
+#define code1(c1)       code(c1,#c1);
+#define code2(c1,c2)    code(c1,#c1); code(c2,#c2)
+#define code3(c1,c2,c3) code(c1,#c1); code(c2,#c2); code(c3,#c3)
 int yylex(void);
 void yyerror(char *s);
 %}
 %union {
-        double  val;   /* actual value */
         Symbol *sym;   /* symbol table pointer */
+        Inst   *inst;  /* machine instruction */
 }
-%token  <val>   NUMBER
-%token  <sym>   CONST VAR BLTIN UNDEF
-%type   <val>   expr asgn
-%right  '='
+%token  <sym>   NUMBER CONST VAR BLTIN UNDEF
+%right  '='            /* right associative, least precedence */
 %left   '+' '-'        /* left associative, same precedence */
-%left   '*' '/' '%'    /* left assoc., higher precedence */
+%left   '*' '/'        /* left assoc., higher precedence */
 %left   UNARYPM        /* unary + and - have highest precedence */
 %right  '^'            /* exponentiation */
 %%
 list:     /* nothing */
         | list       '\n'
-        | list asgn  '\n'
-        | list expr  '\n'  { printf("\t%.8g\n", $2); prev->u.val = $2; }
-        | list error '\n'  { yyerrok; }
+        | list asgn  '\n'    { code2(drop, STOP); return 1; }
+        | list expr  '\n'    { code2(print, STOP); return 1; }
+        | list error '\n'    { yyerrok; }
         ;
-asgn:     VAR '=' expr   { if ($1->type == CONST)
-                               execerror("cannot assign to const", $1->name);
-                           $1->type = VAR;  /* no longer UNDEF */
-                           $$ = $1->u.val = $3; }
+asgn:     VAR '=' expr       { code3(varpush, (Inst) $1, assign); }
         ;
-expr:     NUMBER         { $$ = $1; }
-        | VAR            { if ($1->type == UNDEF)
-                               execerror("undefined variable", $1->name);
-                           $$ = $1->u.val; }
+expr:     NUMBER             { code2(constpush, (Inst) $1); }
+        | VAR                { code3(varpush, (Inst) $1, eval); }
         | asgn
-        | BLTIN '(' expr ')' { $$ = (*($1->u.ptr))($3); }
-        | expr '+' expr  { $$ = $1 + $3; }
-        | expr '-' expr  { $$ = $1 - $3; }
-        | expr '*' expr  { $$ = $1 * $3; }
-        | expr '/' expr  { if ($3 == 0.0)
-                               execerror("division by zero", "");
-                           $$ = $1 / $3; }
-        | expr '%' expr  { if ($3 == 0.0)
-                               execerror("division by zero", "");
-                           $$ = fmod($1, $3); }
-        | expr '^' expr  { $$ = Pow($1, $3); }
-        | '(' expr ')'   { $$ = $2; }
-        | '-' expr  %prec UNARYPM  { $$ = -$2; }
-        | '+' expr  %prec UNARYPM  { $$ = $2; }
+        | BLTIN '(' expr ')' { code2(bltin, (void*) $1->u.ptr); }
+        | expr '+' expr      { code1(add); }
+        | expr '-' expr      { code1(sub); }
+        | expr '*' expr      { code1(mul); }
+        | expr '/' expr      { code1(divide); }
+        | expr '^' expr      { code1(power); }
+        | '(' expr ')'
+        | '-' expr  %prec UNARYPM  { code1(negate); }
+        | '+' expr  %prec UNARYPM
         ;
 %%
 
 #include <ctype.h>
 #include <setjmp.h>
 #include <signal.h>
+#include <stdio.h>
 
 char    *progname;     /* for error messages */
+int     verbose = 0;
 int     lineno = 1;
 jmp_buf begin;
 
 void warning(const char *s, const char *t);
 void fpecatch(int signum);
 
-int main(int argc, char *argv[])  /* hoc3 */
+int main(int argc, char *argv[])  /* hoc4 */
 {
         UNUSED(argc);
         progname = argv[0];
         init();
-        prev = install("$", VAR, 0.0);
         setjmp(begin);
         signal(SIGFPE, fpecatch);
-        yyparse();
+        for (initcode(); yyparse(); initcode())
+                execute(prog);
         return 0;
 }
 
-int yylex(void)  /* hoc3 */
+int yylex(void)  /* hoc4 */
 {
         int c;
         while ((c = getchar()) == ' ' || c == '\t')
@@ -85,13 +74,11 @@ int yylex(void)  /* hoc3 */
         if (c == EOF)
                 return 0;
         if (c == '.' || isdigit(c)) {  /* number */
+                double d;
                 ungetc(c, stdin);
-                scanf("%lf", &yylval.val);
+                scanf("%lf", &d);
+                yylval.sym = install("", NUMBER, d);
                 return NUMBER;
-        }
-        if (c == '$') {  /* previous result */
-                yylval.sym = prev;
-                return VAR;
         }
         if (isalpha(c)) {  /* name */
                 Symbol *sp;
