@@ -88,5 +88,31 @@ draw root.c{dir300}..{dir280}newline.c
   cutbefore bpath root cutafter bpath newline;
 endfig;
 
+% machine code for while
+beginfig(4)
+interim defaultdy := 1pt;
+boxjoin(a.sw=b.nw; a.se=b.ne);
+boxit.pre(btex\hbox to 5em{\hss\dots\hss}etex); pre.dy = 10pt;
+boxit.whilecode(btex\strut{\tt whilecode}etex);
+boxit.ptrbody(btex\strut{}etex);
+boxit.ptrnext(btex\strut{}etex);
+boxit.cond(btex\strut{\it cond}etex);
+boxit.morecond(btex{\dots}etex); morecond.dy = 14pt;
+boxit.stopcond(btex\strut{\tt STOP}etex);
+boxit.body(btex\strut{\it body}etex);
+boxit.morebody(btex{\dots}etex); morebody.dy = 14pt;
+boxit.stopbody(btex\strut{\tt STOP}etex);
+boxit.next(btex\strut{\it next stmt}etex);
+boxit.post(btex{\dots}etex); post.dy = 10pt;
+boxjoin();
+drawboxed(whilecode, ptrbody, ptrnext, cond, morecond,
+          stopcond, body, morebody, stopbody, next);
+drawunboxed(pre, post);
+draw pre.nw--post.sw;
+draw pre.ne--post.se;
+drawarrow .5[ptrbody.c,ptrbody.e]--ptrbody.e{right}..{dir215}body.e;
+drawarrow .5[ptrnext.c,ptrnext.e]--ptrnext.e{right}..{dir215}next.e;
+endfig;
+
 end
 

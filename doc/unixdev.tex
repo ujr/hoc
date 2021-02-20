@@ -27,7 +27,8 @@
 \def\endexercise{\unskip\kern.8ex$\sqcup\mkern-12mu\sqcap$\par\endgroup}
 
 \def\begincode{\medbreak\begingroup\tt
-  \obeylines\obeyspaces\frenchspacing\spaceskip=\ttglue
+  \obeylines\obeyspaces\frenchspacing
+  \spaceskip=\ttglue \baselineskip=11pt plus.5pt
   \catcode`\$=12\catcode`\{=12\catcode`\}=12\catcode`\&=12
   \catcode`\^=12\catcode`\#=12\catcode`\%=12\catcode`\_=12\relax}%
 \def\endcode{\medskip\endgroup}
@@ -1877,5 +1878,374 @@ Modify {\tt hoc4} to use a {\tt switch} on the type of operation
 in {\tt execute} instead of calling functions. How do the versions
 compare in lines of source code and execution spead? How are they
 likely to compare in case of maintenance and growth?\endexercise
+
+
+\section Stage 5: Control flow and relational operators
+
+This version, {\tt hoc5}, derives the benefit of the effort
+we put into making an interpreter. It provides {\tt if-else}
+and {\tt while} statements like those in~C, statement grouping
+with {\tt\ocb} and {\tt\ccb}, and a {\tt print} statement.
+A full set of relational operators is included ({\tt>}, {\tt>=},
+etc.), as are the {\sc AND} and {\sc OR} operators {\tt\&\&}
+and {\tt||}. (These last two do not guarantee the left-to-right
+evaluation that is such an asset in~C; they evaluate both conditions
+even if it is not necessary.)
+
+The grammar has been augmented with tokens, non-terminals, and
+productions for {\tt if}, {\tt while}, braces, and the relational
+operators. This makes it quite a bit longer, but (except possibly
+for the {\tt if} and {\tt while}) not much more complicated:
+
+\begincode
+%{
+#include "hoc.h"
+#define code2(c1,c2)    code(c1); code(c2)
+#define code3(c1,c2,c3) code(c1); code(c2); code(c3)
+%}
+%union {
+~       Symbol  *sym;   /* symbol table pointer */
+~       Inst    *inst;  /* machine instruction */
+}
+\smallbreak
+%token  <sym>   NUMBER PRINT VAR BLTIN UNDEF WHILE IF ELSE
+%type   <inst>  stmt asgn expr stmtlist cond while if end
+%right  '='
+%left   OR
+%left   AND
+%left   GT GE LT LE EQ NE
+%left   '+' '-'
+%left   '*' '/'
+%left   UNARYPM NOT
+%right  '^'
+\smallbreak
+%%
+list:     /* nothing */
+~       | list       '\\n'
+~       | list asgn  '\\n'  { code2(pop, STOP);   return 1; }
+~       | list stmt  '\\n'  { code(STOP);         return 1; }
+~       | list expr  '\\n'  { code2(print, STOP); return 1; }
+~       | list error '\\n'  { yyerrok; }
+~       ;
+\smallbreak
+asgn:     VAR '=' expr  {$$=$3; code3(varpush,(Inst)$1,assign);\rlap}
+~       ;
+\smallbreak
+stmt:     expr          { code(drop); }
+~       | PRINT expr    { code(prexpr); $$ = $2; }
+~       | while cond stmt end {
+~               ($1)[1] = (Inst)$3;    /* body of loop */
+~               ($1)[2] = (Inst)$4; }  /* end, if cond fails */
+~       | if cond stmt end {           /* else-less if */
+~               ($1)[1] = (Inst)$3;    /* thenpart */
+~               ($1)[3] = (Inst)$4; }  /* end, if cond fails */
+~       | if cond stmt end ELSE stmt end { /* if with else */
+~               ($1)[1] = (Inst)$3;    /* thenpart */
+~               ($1)[2] = (Inst)$6;    /* elsepart */
+~               ($1)[3] = (Inst)$7; }  /* end, if cond fails */
+~       | '{' stmtlist '}'    { $$ = $2; }
+~       ;
+\goodbreak
+cond:     '(' expr ')'  { code(STOP); $$ = $2; }
+~       ;
+\goodbreak
+while:    WHILE  { $$ = code3(whilecode, STOP, STOP); }
+~       ;
+\goodbreak
+if:       IF     { $$ = code(ifcode); code3(STOP, STOP, STOP); }
+~       ;
+\goodbreak
+end:      /* nothing */     { code(STOP); $$ = progp; }
+~       ;
+\goodbreak
+stmtlist: /* nothing */     { $$ = progp; }
+~       | stmtlist '\\n'
+~       | stmtlist stmt
+~       ;
+\goodbreak
+expr:     NUMBER    { $$ = code2(constpush, (Inst)$1); }
+~       | VAR       { $$ = code3(varpush, (Inst)$1, eval); }
+~       | asgn
+~       | BLTIN '(' expr ')'
+~                   { $$ = $3; code2(bltin, (void*)$1->u.ptr); }
+~       | '(' expr ')'   { $$ = $2; }
+\goodbreak
+~       | expr '+' expr  { code(add); }
+~       | expr '-' expr  { code(sub); }
+~       | expr '*' expr  { code(mul); }
+~       | expr '/' expr  { code(divide); }
+~       | expr '^' expr  { code(power); }
+\goodbreak
+~       | '-' expr %prec UNARYPM { $$=$2; code(negate); }
+~       | '+' expr %prec UNARYPM { $$=$2; }
+\goodbreak
+~       | expr GT expr   { code(gt); }
+~       | expr GE expr   { code(ge); }
+~       | expr LT expr   { code(lt); }
+~       | expr LE expr   { code(le); }
+~       | expr EQ expr   { code(eq); }
+~       | expr NE expr   { code(ne); }
+~       | expr AND expr  { code(land); }
+~       | expr OR expr   { code(lor); }
+~       | NOT expr       { $$ = $2; code(lnot); }
+~       ;
+%%
+\endcode
+
+\noindent
+The grammar has five shift/reduce conflicts, all like the one
+mentioned in {\tt hoc3}.
+
+Notice that {\tt STOP} instructions are now generated in several
+places to terminate a sequence; as before, {\tt progp} is the
+locatoin of th enext instruction that will be generated. When
+executed those {\tt STOP} instructions will terminate the loop
+in {\tt execute}. The production for {\tt end} is in effect a
+subroutine, called from several places, that generates a {\tt STOP}
+and returns the location of the instruction that follows it.
+
+The code generated for {\tt while} and {\tt if} needs particular
+study. When the keyword {\tt while} is encountered, the operation
+{\tt whilecode} is generated, and its position in the machine
+is returned as the value of the production
+\begincode
+while:  WHILE
+\endcode
+\noindent
+At the same time, however, the two following positions in the
+machine are also reserved, to be filled in later. The next
+code generated is the expression that makes up the condition
+part of the {\tt while}. The value returned by {\tt cond} is
+the beginning of the code for the condition. After the whole
+{\tt while} statement has been recognized, the two extra
+positions reserved after the {\tt whilecode} instruction are
+filled with the locations of the loop body and the statement
+that follows the loop. (Code for that statement will be generated
+next.)
+\begincode
+~   | while cond stmt end {
+~           ($1)[1] = (Inst)$3;    \it body of loop\tt
+~           ($1)[2] = (Inst)$4; }  \it end, if cond fails\tt
+\endcode
+\noindent
+{\tt\$1} is the location in the machine at which {\tt whilecode}
+is stored; therefore, {\tt(\$1)[1]} and {\tt(\$1)[2]} are the
+next two positions.
+
+The situation for an {\tt if} is similar, except that three
+spots are reserved, for the {\tt then} and {\tt else} parts
+and the statement that follows the {\tt if}. We will return
+shortly to how this operates.
+
+\nobreak\medskip
+\centerline{\epsfbox{unixdev-4.mps}}
+\medbreak
+
+Lexical analysis is somewhat longer this time, mainly to
+pick up the additional operators:
+
+\begincode
+int yylex(void)  /* hoc5 */
+...
+~       switch (c) {
+~       case '>':   return follow('=', GE, GT);
+~       case '<':   return follow('=', LE, LT);
+~       case '=':   return follow('=', EQ, '=');
+~       case '!':   return follow('=', NE, NOT);
+~       case '|':   return follow('|', OR, '|');
+~       case '&':   return follow('&', AND, '&');
+~       case '\\n':  lineno++; return '\\n';
+~       default:    return c;
+~       }
+}
+\endcode
+
+\noindent
+{\tt follow} looks ahead one character, and puts it back
+on the input with {\tt ungetc} if it was not what was
+expected.
+\begincode
+int follow(int expect, int ifyes, int ifno)  /* look ahead */
+{
+~       int c = getchar();
+~       if (c == expect)  return ifyes;
+~       ungetc(c, stdin); return ifno;
+}
+\endcode
+
+There are more function declarations in {\tt hoc.h}---all of
+the relationals, for instance---but it's otherwise the same
+idea as in {\tt hoc4}. Here are the last few lines:
+
+\begincode
+...
+typedef void (*Inst)();  /* machine instruction */
+#define STOP (Inst) 0
+\medbreak
+extern  Inst prog[];
+extern  void constpush(), varpush(), drop();
+extern  void add(), sub(), mul(), divide(), power(), negate();
+extern  void eval(), assign(), bltin(), print();
+extern  void prexpr(), ifcode(), whilecode();
+extern  void eq(), ne(), gt(), ge(), lt(), le();
+extern  void land(), lor(), lnot();  /* logical and/or/not */
+\endcode
+
+\noindent
+Most of {\tt code.c} is the same too, although there are a lot
+of obvious new routines to handle the relational operators.
+The function {\tt le} (``less than or equal to'') is a typical
+example:
+\begincode
+void le(void)
+{
+~       Datum d2 = pop();
+~       Datum d1 = pop();
+~       d1.val = (double) (d1.val <= d2.val);
+~       push(d1);
+}
+\endcode
+
+The two routines that are not obvious are {\tt whilecode} and
+{\tt ifcode}. The critical point for understanding them is to
+realize that {\tt execute} marches along a sequence of
+instructions until it finds a {\tt STOP}, whereupon it returns.
+Code generation during parsing has carefully arranged that a
+{\tt STOP} terminates each sequence of instructions that should
+be handled by a single call of {\tt execute}. The body of a
+{\tt while}, and the condition, {\tt then} and {\tt else} parts
+of an {\tt if} are all handled by recursive calls to {\tt execute}
+that return to the parent level when they have finished their task.
+The control of these recursive tasks is done by code in
+{\tt whilecode} and {\tt ifcode} that corresponds directly
+to {\tt while} and {\tt if} statements.
+
+\begincode
+void whilecode(void)
+{
+~       Datum d;
+~       Inst *savepc = pc;     /* loop body */
+\smallbreak
+~       execute(savepc+2);     /* condition */
+~       d = pop();
+~       while (d.val) {
+~               execute(*((Inst **)(savepc)));  /* body */
+~               execute(savepc+2);
+~               d = pop();
+~       }
+~       pc = *((Inst **)(savepc+1));  /* next statement */
+}
+\endcode
+
+\noindent
+Recall from our discussion earlier that the {\tt whilecode} operation
+is followed by a pointer to the body of the loop, a pointer to the
+next statement, and then the beginning of the condition part.
+When {\tt whilecode} is called, {\tt pc} has already been incremented,
+so it points to the loop body pointer. Thus {\tt pc+1} points to the
+following statement, and {\tt pc+2} points to the condition.
+[Indeed {\tt pc} points to a pointer to the body code and thus
+is dereferenced before being passed to {\tt execute}; similarly, the
+pointer at {\tt pc+1} is dereferenced before being assigned to {\tt pc}.]
+
+{\tt ifcode} is very similar; in this case, upon entry {\tt pc}
+points to then {\tt then} part, {\tt pc+1} to the {\tt else},
+{\tt pc+2} to the next statement, and {\tt pc+3} is the condition.
+
+\begincode
+void ifcode(void)
+{
+~       Datum d;
+~       Inst *savepc = pc;     /* then part */
+\smallbreak
+~       execute(savepc+3);     /* condition */
+~       d = pop();
+~       if (d.val)
+~               execute(*((Inst **)(savepc)));
+~       else if (*((Inst **)(savepc+1)))  /* else part? */
+~               execute(*((Inst **)(savepc+1)));
+~       pc = *((Inst **)(savepc+2));      /* next stmt */
+}
+\endcode
+
+The initialization code in {\tt init.c} is augmented a little as well,
+with a table of keywords that are stored in the symbol table along
+with everything else:
+
+\begincode
+...
+static struct {  /* Keywords */
+~       char *name;
+~       int   kval;
+} keywords[] = {
+~       "if",      IF,
+~       "else",    ELSE,
+~       "while",   WHILE,
+~       "print",   PRINT,
+~       0,         0
+};
+...
+\endcode
+
+\noindent
+We also need one more loop in {\tt init}, to install keywords.
+\begincode
+~  for (i = 0; keywords[i].name; i++)
+~          install(keywords[i].name, keywords[i].kval, 0.0);
+\endcode
+
+No changes are needed in any of the symbol table management;
+{\tt code.c} contains the routine {\tt prexpr}, which is called
+when a statement of the form {\tt print~\it expr\/} is executed.
+
+\begincode
+void prexpr(void)  /* print numeric value */
+{
+~       Datum d = pop();
+~       printf("%.8g\\n", d.val);
+}
+\endcode
+
+\noindent
+This is not the {\tt print} function that is called automatically
+to print the final result of an evaluation; that one pops the
+stack and adds a tab to the output.
+
+{\tt hoc5} is by now quite a serviceable calculator, although for
+serious programming, more facilities are needed. The following
+exercises suggest some possibilities.
+
+\exercise 8-12.
+Modify {\tt hoc5} to print the machine it generates in a readable
+form for debugging.\endexercise
+
+\exercise 8-13.
+Add the assignment operators of~C, such as {\tt+=}, {\tt*=}, etc.,
+and the increment and decrement operators {\tt++} and {\tt--}.
+Modify {\tt\&\&} and {\tt||} so they guarantee left-to-right
+evaluation and early termination, as in~C.\endexercise
+
+\exercise 8-14.
+Add a {\tt for} statement like that of~C to {\tt hoc5}.
+Add {\tt break} and {\tt continue}.\endexercise
+
+\exercise 8-15.
+How would you modify the grammar or the lexical analyzer (or both)
+of {\tt hoc5} to make it more forgiving about the placement of
+newlines? How would you add semicolon as a synonym for newline?
+How would you add a comment convention?
+What syntax would you use?\endexercise
+
+\exercise 8-16.
+Add interrupt handling to {\tt hoc5}, so that a runaway computation
+can be stopped without losing the state of variables already
+computed.\endexercise
+
+\exercise 8-17.
+It is a nuisance to have to create a program in a file, run it,
+then edit the file to make a trivial change. How would you modify
+{\tt hoc5} to provide an edit command that would cause you to be
+placed in an editor with a copy of your {\tt hoc} program already
+read in? Hint: consider a {\tt text} opcode.\endexercise
 
 \bye
