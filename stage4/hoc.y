@@ -16,7 +16,7 @@ Symbol  *prev;         /* previous result */
 %right  '='            /* right associative, least precedence */
 %left   '+' '-'        /* left associative, same precedence */
 %left   '*' '/'        /* left assoc., higher precedence */
-%left   UNARYPM        /* unary + and - have highest precedence */
+%left   UNARYPM        /* unary + and - */
 %right  '^'            /* exponentiation */
 %%
 list:     /* nothing */

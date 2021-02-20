@@ -15,7 +15,7 @@ conform with ANSI C.
   (add unary minus and variables `a` to `z`)
 - source of [hoc at stage 3](./stage3/)
   (add arbitrarily named variables and built-ins)
-- source of hoc at stage 4
+- source of [hoc at stage 4](./stage4/)
   (internal change: generate code)
 - source of hoc at stage 5
   (add control flow and relational operators)

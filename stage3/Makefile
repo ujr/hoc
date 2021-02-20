@@ -10,6 +10,9 @@ hoc3: $(OBJS)
 hoc.o: hoc.h
 init.o symbol.o: hoc.h y.tab.h
 
+check: hoc3
+	@./hoc3 < test.hoc | cmp test.out && echo OK || echo FAIL
+
 pr:
 	@pr hoc.y hoc.h init.c math.c symbol.c Makefile
 

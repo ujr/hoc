@@ -13,6 +13,9 @@ code.o init.o symbol.o: x.tab.h
 x.tab.h: y.tab.h
 	-cmp -s x.tab.h y.tab.h || cp y.tab.h x.tab.h
 
+check: hoc4
+	@./hoc4 < test.hoc | cmp test.out && echo OK || echo FAIL
+
 pr: hoc.y hoc.h code.c init.c math.c symbol.c
 	@pr $?
 	@touch pr
