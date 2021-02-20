@@ -8,10 +8,12 @@ int yylex(void);
 void yyerror(char *s);
 Symbol  *prev;         /* previous result */
 %}
+
 %union {
         Symbol *sym;   /* symbol table pointer */
         Inst   *inst;  /* machine instruction */
 }
+
 %token  <sym>   NUMBER CONST VAR BLTIN UNDEF WHILE IF ELSE PRINT
 %type   <inst>  stmt asgn expr stmtlist cond while if end
 %right  '='
@@ -22,7 +24,9 @@ Symbol  *prev;         /* previous result */
 %left   '*' '/'
 %left   UNARYPM NOT
 %right  '^'
+
 %%
+
 list:     /* nothing */
         | list       '\n'
         | list asgn  '\n'    { code2(drop, STOP); return 1; }
@@ -99,22 +103,29 @@ jmp_buf begin;
 
 void warning(const char *s, const char *t);
 void fpecatch(int signum);
+void interrupt(int signum);
 static int follow(int expect, int ifyes, int ifno);
 
-int main(int argc, char *argv[])  /* hoc4 */
+int main(int argc, char *argv[])  /* hoc5 */
 {
         UNUSED(argc);
+
         progname = argv[0];
         init();
         prev = install("$", VAR, 0.0);
         setjmp(begin);
         signal(SIGFPE, fpecatch);
-        for (initcode(); yyparse(); initcode())
+
+        for (initcode(); yyparse(); initcode()) {
+                signal(SIGINT, interrupt);
                 execute(prog);
+                signal(SIGINT, SIG_DFL);
+        }
+
         return 0;
 }
 
-int yylex(void)  /* hoc4 */
+int yylex(void)  /* hoc5 */
 {
         int c;
         while ((c = getchar()) == ' ' || c == '\t')
@@ -190,6 +201,12 @@ void execerror(const char *s, const char *t)  /* run-time error recovery */
 void fpecatch(int signum)  /* catch floating point exceptions */
 {
         UNUSED(signum);
-        execerror("floating point exceptoin", (char *) 0);
+        execerror("floating point exception", 0);
 }
 
+void interrupt(int signum)  /* catch sig int */
+{
+        UNUSED(signum);
+        fflush(stdout);
+        execerror("interrupted", 0);
+}
