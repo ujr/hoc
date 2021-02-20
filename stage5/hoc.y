@@ -89,6 +89,7 @@ expr:     NUMBER             { $$ = code2(constpush, (Inst) $1); }
         | expr OR expr       { code1(lor); }
         | NOT expr           { $$ = $2; code1(lnot); }
         ;
+
 %%
 
 #include <ctype.h>
@@ -131,7 +132,7 @@ int yylex(void)  /* hoc5 */
         while ((c = getchar()) == ' ' || c == '\t')
                 ;
         if (c == EOF)
-                return 0;
+                return 0;  /* zero is EOF to yyparse */
         if (c == '.' || isdigit(c)) {  /* number */
                 double d;
                 ungetc(c, stdin);
@@ -159,6 +160,11 @@ int yylex(void)  /* hoc5 */
                 return sp->type == UNDEF || sp->type == CONST
                         ? VAR  /* CONST and UNDEF are grammatically VARs */
                         : sp->type;
+        }
+        if (c == '#') {  /* comment */
+                do c = getchar();
+                while (c != EOF && c != '\n');
+                if (c == EOF) return 0;
         }
         if (c == '\n')
                 lineno++;
@@ -210,3 +216,4 @@ void interrupt(int signum)  /* catch sig int */
         fflush(stdout);
         execerror("interrupted", 0);
 }
+
