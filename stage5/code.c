@@ -74,6 +74,13 @@ void swap(void)  /* swap (exchange) top two items */
         push(x);
 }
 
+void dup(void)  /* duplicate top item of stack */
+{
+        Datum d = pop();
+        push(d);
+        push(d);
+}
+
 void drop(void)  /* pop and discard top item from stack */
 {
         (void) pop();

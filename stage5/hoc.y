@@ -11,6 +11,7 @@
 int yylex(void);
 void yyerror(char *s);
 Symbol  *prev;         /* previous result */
+Symbol  *one;          /* the number one */
 static int plevel = 0; /* paren nesting level */
 static int blevel = 0; /* brace nesting level */
 %}
@@ -28,7 +29,7 @@ static int blevel = 0; /* brace nesting level */
 %left   GT GE LT LE EQ NE
 %left   '+' '-'
 %left   '*' '/'
-%left   UNARYPM NOT
+%left   UNARYPM NOT INCR DECR
 %right  '^'
 
 %%
@@ -79,6 +80,30 @@ stmtlist: /* nothing */      { $$ = progp; }
 expr:     NUMBER             { $$ = code2(constpush, (Inst) $1); }
         | VAR                { $$ = code3(varpush, (Inst) $1, eval); }
         | asgn
+
+          /* too much code generation here...
+             want {pre,post}{incr,decr} in code.c */
+        | INCR VAR           { $$ = code2(constpush, (Inst) one);
+                               code3(varpush, (Inst) $2, eval);
+                               code1(add);
+                               code3(varpush, (Inst) $2, assign); }
+        | DECR VAR           { $$ = code2(constpush, (Inst) one);
+                               code3(varpush, (Inst) $2, eval);
+                               code2(swap, sub);
+                               code3(varpush, (Inst) $2, assign); }
+        | VAR INCR           { $$ = code3(varpush, (Inst) $1, eval);
+                               code1(dup);
+                               code2(constpush, (Inst) one);
+                               code1(add);
+                               code3(varpush, (Inst) $1, assign);
+                               code1(drop); }
+        | VAR DECR           { $$ = code3(varpush, (Inst) $1, eval);
+                               code1(dup);
+                               code2(constpush, (Inst) one);
+                               code1(sub);
+                               code3(varpush, (Inst) $1, assign);
+                               code1(drop); }
+
         | BLTIN '(' expr ')' { $$ = $3; code2(bltin, (void*) $1->u.ptr); }
         | '(' expr ')'       { $$ = $2; }
 
@@ -126,6 +151,7 @@ int main(int argc, char *argv[])  /* hoc5 */
         progname = argv[0];
         init();
         prev = install("$", VAR, 0.0);
+        one = install("1", CONST, 1.0);
         setjmp(begin);
         signal(SIGFPE, fpecatch);
 
@@ -185,8 +211,8 @@ int yylex(void)  /* hoc5 */
         case '>':   return follow('=', GE, GT);
         case '<':   return follow('=', LE, LT);
         case '=':   return follow('=', EQ, '=');
-        case '+':   return follow('=', ADDBY, '+');
-        case '-':   return follow('=', SUBBY, '-');
+        case '+':   return follow('=', ADDBY, follow('+', INCR, '+'));
+        case '-':   return follow('=', SUBBY, follow('-', DECR, '-'));
         case '*':   return follow('=', MULBY, '*');
         case '/':   return follow('=', DIVBY, '/');
         case '!':   return follow('=', NE, NOT);
