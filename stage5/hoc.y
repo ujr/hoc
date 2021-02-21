@@ -7,6 +7,8 @@
 int yylex(void);
 void yyerror(char *s);
 Symbol  *prev;         /* previous result */
+static int plevel = 0; /* paren nesting level */
+static int blevel = 0; /* brace nesting level */
 %}
 
 %union {
@@ -33,7 +35,7 @@ list:     /* nothing */
         | list stmt  '\n'    { code1(STOP); return 1; }
         | list expr  '\n'    { code3(varpush, (Inst) prev, assign);
                                code2(print, STOP); return 1; }
-        | list error '\n'    { yyerrok; }
+        | list error '\n'    { yyerrok; plevel = blevel = 0; }
         ;
 asgn:     VAR '=' expr       { $$=$3; code3(varpush, (Inst) $1, assign); }
         ;
@@ -129,7 +131,8 @@ int main(int argc, char *argv[])  /* hoc5 */
 int yylex(void)  /* hoc5 */
 {
         int c;
-        while ((c = getchar()) == ' ' || c == '\t')
+        while ((c = getchar()) == ' ' || c == '\t' ||
+               (c == '\n' && (plevel > 0 || blevel > 0)))
                 ;
         if (c == EOF)
                 return 0;  /* zero is EOF to yyparse */
@@ -175,6 +178,10 @@ int yylex(void)  /* hoc5 */
         case '!':   return follow('=', NE, NOT);
         case '|':   return follow('|', OR, '|');
         case '&':   return follow('&', AND, '&');
+        case '(':   plevel += 1; return c;
+        case ')':   plevel -= 1; return c;
+        case '{':   blevel += 1; return c;
+        case '}':   blevel -= 1; return c;
         }
         return c;
 }
