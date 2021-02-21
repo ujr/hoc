@@ -30,12 +30,14 @@ static int blevel = 0; /* brace nesting level */
 %%
 
 list:     /* nothing */
-        | list       '\n'
-        | list asgn  '\n'    { code2(drop, STOP); return 1; }
-        | list stmt  '\n'    { code1(STOP); return 1; }
-        | list expr  '\n'    { code3(varpush, (Inst) prev, assign);
+        | list       term    /* allow empty lines and extra semicolons */
+        | list asgn  term    { code2(drop, STOP); return 1; }
+        | list stmt  term    { code1(STOP); return 1; }
+        | list expr  term    { code3(varpush, (Inst) prev, assign);
                                code2(print, STOP); return 1; }
         | list error '\n'    { yyerrok; plevel = blevel = 0; }
+        ;
+term:     ';' | '\n'         /* statement (and asgn and expr) terminator */
         ;
 asgn:     VAR '=' expr       { $$=$3; code3(varpush, (Inst) $1, assign); }
         ;
@@ -62,7 +64,7 @@ if:       IF      { $$ = code1(ifcode); code3(STOP, STOP, STOP); }
 end:      /* nothing */      { code1(STOP); $$ = progp; }
         ;
 stmtlist: /* nothing */      { $$ = progp; }
-        | stmtlist '\n'
+        | stmtlist term
         | stmtlist stmt
         ;
 
