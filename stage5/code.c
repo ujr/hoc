@@ -66,6 +66,14 @@ void varpush(void)  /* push variable onto stack */
         push(d);
 }
 
+void swap(void)  /* swap (exchange) top two items */
+{
+        Datum y = pop();
+        Datum x = pop();
+        push(y);
+        push(x);
+}
+
 void drop(void)  /* pop and discard top item from stack */
 {
         (void) pop();

@@ -4,6 +4,10 @@
 #define code1(c1)       code(c1,#c1);
 #define code2(c1,c2)    code(c1,#c1); code(c2,#c2)
 #define code3(c1,c2,c3) code(c1,#c1); code(c2,#c2); code(c3,#c3)
+#define code4(a,b,c,d)  code2(a,b); code2(c,d);
+#define code8(a,b,c,d,e,f,g,h) code4(a,b,c,d); code4(e,f,g,h)
+#define codeopeq(var,op) code8(varpush,var,eval,swap,op,varpush,var,assign)
+
 int yylex(void);
 void yyerror(char *s);
 Symbol  *prev;         /* previous result */
@@ -18,7 +22,7 @@ static int blevel = 0; /* brace nesting level */
 
 %token  <sym>   NUMBER CONST VAR BLTIN UNDEF WHILE IF ELSE PRINT
 %type   <inst>  stmt asgn expr stmtlist cond while if end
-%right  '='
+%right  '=' ADDBY SUBBY MULBY DIVBY
 %left   OR
 %left   AND
 %left   GT GE LT LE EQ NE
@@ -40,6 +44,10 @@ list:     /* nothing */
 term:     ';' | '\n'         /* statement (and asgn and expr) terminator */
         ;
 asgn:     VAR '=' expr       { $$=$3; code3(varpush, (Inst) $1, assign); }
+        | VAR ADDBY expr     { $$=$3; codeopeq((Inst) $1, add); }
+        | VAR SUBBY expr     { $$=$3; codeopeq((Inst) $1, sub); }
+        | VAR MULBY expr     { $$=$3; codeopeq((Inst) $1, mul); }
+        | VAR DIVBY expr     { $$=$3; codeopeq((Inst) $1, divide); }
         ;
 stmt:     expr               { code1(drop); }
         | PRINT expr         { code1(prexpr); $$ = $2; }
@@ -177,6 +185,10 @@ int yylex(void)  /* hoc5 */
         case '>':   return follow('=', GE, GT);
         case '<':   return follow('=', LE, LT);
         case '=':   return follow('=', EQ, '=');
+        case '+':   return follow('=', ADDBY, '+');
+        case '-':   return follow('=', SUBBY, '-');
+        case '*':   return follow('=', MULBY, '*');
+        case '/':   return follow('=', DIVBY, '/');
         case '!':   return follow('=', NE, NOT);
         case '|':   return follow('|', OR, '|');
         case '&':   return follow('&', AND, '&');

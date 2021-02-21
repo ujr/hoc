@@ -27,7 +27,7 @@ typedef void (*Inst)();    /* machine instruction */
 #define STOP (Inst) 0      /* instruction to stop execution */
 
 extern Inst prog[], *progp;
-extern void constpush(), varpush(), drop();
+extern void constpush(), varpush(), swap(), drop();
 extern void add(), sub(), mul(), divide(), power(), negate();
 extern void eval(), assign(), bltin(), print();
 extern void prexpr(), ifcode(), whilecode();
