@@ -39,4 +39,4 @@ extern void initcode(void);
 extern Inst *code(Inst f, const char *s);
 extern void execute(Inst *p);
 
-extern int verbose;
+extern void dumpprog(void);

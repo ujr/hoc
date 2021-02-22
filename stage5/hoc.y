@@ -11,7 +11,7 @@
 int yylex(void);
 void yyerror(char *s);
 Symbol  *prev;         /* previous result */
-Symbol  *one;          /* the number one */
+Symbol  *debug;        /* debugging output */
 static int plevel = 0; /* paren nesting level */
 static int blevel = 0; /* brace nesting level */
 %}
@@ -119,7 +119,6 @@ expr:     NUMBER             { $$ = code2(constpush, (Inst) $1); }
 #include <stdio.h>
 
 char    *progname;     /* for error messages */
-int     verbose = 0;
 int     lineno = 1;
 jmp_buf begin;
 
@@ -135,12 +134,14 @@ int main(int argc, char *argv[])  /* hoc5 */
         progname = argv[0];
         init();
         prev = install("$", VAR, 0.0);
-        one = install("1", CONST, 1.0);
+        debug = install("debug", VAR, 0.0);
         setjmp(begin);
         signal(SIGFPE, fpecatch);
 
         for (initcode(); yyparse(); initcode()) {
                 signal(SIGINT, interrupt);
+                if (debug->u.val)
+                        dumpprog();
                 execute(prog);
                 signal(SIGINT, SIG_DFL);
         }

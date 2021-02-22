@@ -10,11 +10,29 @@ static Datum *stackp;          /* next free spot on stack */
        Inst   prog[NPROG];     /* the machine */
        Inst  *progp;           /* next free spot (for code generation) */
 static Inst  *pc;              /* program counter (for code execution) */
+static char  *syms[NPROG];
+static char **symsp;
+
+void dumpprog(void)
+{
+  int i;
+  Inst *p;
+  FILE *fp = stderr;
+  for (i = 0, p = prog; p < progp; ++i, ++p) {
+    if (p > prog && *(p-1) == varpush)
+      fprintf(fp, "%02d:   %s\n", i, ((Symbol *) *p)->name);
+    else if (i > 0 && prog[i-1] == constpush)
+      fprintf(fp, "%02d:   %.8g\n", i, ((Symbol *) *p)->u.val);
+    else
+      fprintf(fp, "%02d: %s\n", i, syms[i]);
+  }
+}
 
 void initcode(void)  /* initialize for code generation */
 {
         stackp = stack;
         progp = prog;
+        symsp = syms;
 }
 
 static void push(Datum d)  /* push d onto stack */
@@ -36,10 +54,9 @@ Inst *code(Inst f, const char *s)  /* emit one instruction or operand */
         Inst *oldprogp = progp;
         if (progp >= &prog[NPROG])
                 execerror("program too big", 0);
-        *progp++ = f;
 
-        if (verbose > 0)
-                fprintf(stderr, "%2zu: %s\n", oldprogp-prog, s);
+        *progp++ = f;
+        *symsp++ = (char *) s;
 
         return oldprogp;
 }
