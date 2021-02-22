@@ -22,3 +22,11 @@ i
 
 i=8; while (i > .5) { print i; i /= 2 }; i
 
+# weird encounters with pre/post increment:
+i=2
+i += i++; i  # essentially 3 + 2 = 5
+i += ++i; i  # essentially 6 + 6 = 12
+
+# short cutting logical binops?
+i = 2; if (i <= 2 || ++i > 3) print 55; i  # sadly, i is now 3
+i = 2; if (i >= 3 && ++i > 3) print 55; i  # same here

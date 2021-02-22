@@ -33,6 +33,7 @@ extern void eval(), assign(), bltin(), print();
 extern void prexpr(), ifcode(), whilecode();
 extern void eq(), ne(), gt(), ge(), lt(), le();
 extern void land(), lor(), lnot();
+extern void preincr(), postincr(), predecr(), postdecr();
 
 extern void initcode(void);
 extern Inst *code(Inst f, const char *s);

@@ -81,28 +81,12 @@ expr:     NUMBER             { $$ = code2(constpush, (Inst) $1); }
         | VAR                { $$ = code3(varpush, (Inst) $1, eval); }
         | asgn
 
-          /* too much code generation here...
-             want {pre,post}{incr,decr} in code.c */
-        | INCR VAR           { $$ = code2(constpush, (Inst) one);
-                               code3(varpush, (Inst) $2, eval);
-                               code1(add);
-                               code3(varpush, (Inst) $2, assign); }
-        | DECR VAR           { $$ = code2(constpush, (Inst) one);
-                               code3(varpush, (Inst) $2, eval);
-                               code2(swap, sub);
-                               code3(varpush, (Inst) $2, assign); }
-        | VAR INCR           { $$ = code3(varpush, (Inst) $1, eval);
-                               code1(dup);
-                               code2(constpush, (Inst) one);
-                               code1(add);
-                               code3(varpush, (Inst) $1, assign);
-                               code1(drop); }
-        | VAR DECR           { $$ = code3(varpush, (Inst) $1, eval);
-                               code1(dup);
-                               code2(constpush, (Inst) one);
-                               code1(sub);
-                               code3(varpush, (Inst) $1, assign);
-                               code1(drop); }
+          /* could also do without specific instructions, e.g. pre inc:
+             constpush 1, varpush $2 eval, add, varpush $2 assign */
+        | INCR VAR           { $$ = code3(varpush, (Inst) $2, preincr); }
+        | DECR VAR           { $$ = code3(varpush, (Inst) $2, predecr); }
+        | VAR INCR           { $$ = code3(varpush, (Inst) $1, postincr); }
+        | VAR DECR           { $$ = code3(varpush, (Inst) $1, postdecr); }
 
         | BLTIN '(' expr ')' { $$ = $3; code2(bltin, (void*) $1->u.ptr); }
         | '(' expr ')'       { $$ = $2; }

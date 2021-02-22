@@ -136,6 +136,50 @@ void power(void)  /* raise to power */
         push(x);
 }
 
+void preincr(void) /* ++x */
+{
+        Datum x = pop();
+        if (x.sym->type == UNDEF)
+                execerror("undefined variable", x.sym->name);
+        if (x.sym->type != VAR)
+                execerror("assignment to non-variable", x.sym->name);
+        x.val = ++(x.sym->u.val);
+        push(x);
+}
+
+void postincr(void) /* x++ */
+{
+        Datum x = pop();
+        if (x.sym->type == UNDEF)
+                execerror("undefined variable", x.sym->name);
+        if (x.sym->type != VAR)
+                execerror("assignment to non-variable", x.sym->name);
+        x.val = (x.sym->u.val)++;
+        push(x);
+}
+
+void predecr(void) /* --x */
+{
+        Datum x = pop();
+        if (x.sym->type == UNDEF)
+                execerror("undefined variable", x.sym->name);
+        if (x.sym->type != VAR)
+                execerror("assignment to non-variable", x.sym->name);
+        x.val = --(x.sym->u.val);
+        push(x);
+}
+
+void postdecr(void) /* x-- */
+{
+        Datum x = pop();
+        if (x.sym->type == UNDEF)
+                execerror("undefined variable", x.sym->name);
+        if (x.sym->type != VAR)
+                execerror("assignment to non-variable", x.sym->name);
+        x.val = (x.sym->u.val)--;
+        push(x);
+}
+
 void eval(void)  /* evaluate variable on stack */
 {
         Datum d = pop();
