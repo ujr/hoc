@@ -1,5 +1,6 @@
 #include "hoc.h"
 #include "y.tab.h"
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -35,3 +36,22 @@ void *emalloc(unsigned nbytes)  /* check return from malloc */
   return p;
 }
 
+void dumpsyms(void)
+{
+  Symbol *sp;
+  FILE *fp = stderr;
+  for (sp = symlist; sp; sp = sp->next) {
+    switch (sp->type) {
+      case BLTIN:
+        fprintf(fp, "BLTIN %s @ 0x%p\n", sp->name, sp->u.ptr); break;
+      case CONST:
+        fprintf(fp, "CONST %s = %.8g\n", sp->name, sp->u.val); break;
+      case NUMBER:
+        fprintf(fp, "NUMBER %.8g\n", sp->u.val); break;
+      case VAR:
+        fprintf(fp, "VAR %s = %.8g\n", sp->name, sp->u.val); break;
+      default:
+        fprintf(fp, "UNDEF %s\n", sp->name); break;
+    }
+  }
+}

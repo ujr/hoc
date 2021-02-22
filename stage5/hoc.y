@@ -21,7 +21,7 @@ static int blevel = 0; /* brace nesting level */
         Inst   *inst;  /* machine instruction */
 }
 
-%token  <sym>   NUMBER CONST VAR BLTIN UNDEF WHILE IF ELSE PRINT
+%token  <sym>   NUMBER CONST VAR BLTIN UNDEF WHILE IF ELSE PRINT SYMS
 %type   <inst>  stmt asgn expr stmtlist cond while if end
 %right  '=' ADDBY SUBBY MULBY DIVBY
 %left   OR
@@ -36,6 +36,7 @@ static int blevel = 0; /* brace nesting level */
 
 list:     /* nothing */
         | list       term    /* allow empty lines and extra semicolons */
+        | list SYMS  term    { dumpsyms(); }
         | list asgn  term    { code2(drop, STOP); return 1; }
         | list stmt  term    { code1(STOP); return 1; }
         | list expr  term    { code3(varpush, (Inst) prev, assign);
@@ -117,6 +118,7 @@ expr:     NUMBER             { $$ = code2(constpush, (Inst) $1); }
 #include <setjmp.h>
 #include <signal.h>
 #include <stdio.h>
+#include <string.h>
 
 char    *progname;     /* for error messages */
 int     lineno = 1;
@@ -181,6 +183,8 @@ int yylex(void)  /* hoc5 */
                 if ((sp = lookup(sbuf)) == 0)
                         sp = install(sbuf, UNDEF, 0.0);
                 yylval.sym = sp;
+                if (strcmp(sbuf, "syms") == 0)
+                        return SYMS;
                 return sp->type == UNDEF || sp->type == CONST
                         ? VAR  /* CONST and UNDEF are grammatically VARs */
                         : sp->type;
