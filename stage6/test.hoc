@@ -1,0 +1,63 @@
+4*3*2
+(1+2) * (3+4)
+1/2
+355/113
+-3-4
+1.5^2.3
+exp(2.3*log(1.5))
+sin(PI/2)
+atan(1)*DEG
+pi = 4*atan(1)
+2*pi
+# comment line
+i = 0
+while (i++ < 10) {
+  if (int(i/2) == i/2) {
+    print i
+  } else {
+    print i*i
+  }
+}
+i
+
+i=8; while (i > .5) { print i; i /= 2 }; i
+
+# weird encounters with pre/post increment:
+i=2
+i += i++; i  # essentially 3 + 2 = 5
+i += ++i; i  # essentially 6 + 6 = 12
+
+# short cutting logical binops?
+i = 2; if (i <= 2 || ++i > 3) print 55; i  # sadly, i is now 3
+i = 2; if (i >= 3 && ++i > 3) print 55; i  # same here
+
+# procedure, non-recursive
+proc fib() {
+    a = 0
+    b = 1
+    while (b < $1) {
+        print b
+        c = b
+        b = a+b
+        a = c
+    }
+    print "\n"
+}
+fib(1000)
+
+# Factorial (recursive)
+func fac() {
+  if ($1 <= 0) return 1 else return $1 * fac($1-1)
+}
+fac(10)
+
+# Stirling's formula
+func stirl() {
+    return sqrt(2*$1*PI) * ($1/E)^$1*(1+1/(12*$1))
+}
+
+# Compare fac() to stirl()
+i = 9
+while (++i <= 20) {
+    print i, "  ", fac(i)/stirl(i), "\n"
+}

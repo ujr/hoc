@@ -114,5 +114,74 @@ drawarrow .5[ptrbody.c,ptrbody.e]--ptrbody.e{right}..{dir215}body.e;
 drawarrow .5[ptrnext.c,ptrnext.e]--ptrnext.e{right}..{dir215}next.e;
 endfig;
 
+% data structures for procedure call
+beginfig(5)
+interim defaultdy := 1pt;
+%% Machine:
+boxjoin(a.sw=b.nw; a.se=b.ne);
+boxit.mpre(); mpre.dy=10pt; mpre.dx=24pt;
+boxit.mcall(btex\strut{\tt call}etex);
+boxit.mpsym(btex\strut{\tt *sym}etex);
+boxit.mnargs(btex\strut{\tt nargs}etex);
+boxit.mpost(); mpost.dy=10pt;
+boxjoin();
+boxit.mpc(btex\strut{\tt pc}etex); mpc.e+(4mm,0)=mpsym.w;
+drawboxed(mcall, mpsym, mnargs);
+drawunboxed(mpc);
+draw mpre.nw--mpost.sw;
+draw mpre.ne--mpost.se;
+drawarrow mpc.e--mpsym.w;
+%% Frame:
+boxjoin(a.sw=b.nw; a.se=b.ne);
+boxit.fpre(); fpre.dy=10pt; fpre.dx=24pt;
+boxit.fargn(btex\strut{\tt argn}etex);
+boxit.fnargs(btex\strut{\tt nargs}etex);
+boxit.fretpc(btex\strut{\tt retpc}etex);
+boxit.fsp(btex\strut{\tt sp}etex);
+boxit.fpost(); fpost.dy=10pt;
+boxjoin();
+mpre.c + (54mm,0) = fpre.c;
+drawboxed(fargn, fnargs, fretpc, fsp);
+draw fpre.nw--fpost.sw;
+draw fpre.ne--fpost.se;
+%% Stack:
+boxjoin(a.sw=b.nw; a.se=b.ne);
+boxit.spre(); spre.dy=10pt; spre.dx=24pt;
+boxit.argiii(btex\strut{\tt arg3}etex);
+boxit.argii(btex\strut{\tt arg2}etex);
+boxit.argi(btex\strut{\tt arg1}etex);
+boxit.more(btex\strut{}etex);
+boxit.spost(); spost.dy=10pt;
+boxjoin();
+boxit.stackp(btex\strut{\tt stackp}etex);
+1.5[argiii.se,argiii.ne]+(4mm,0)=stackp.w;
+fpre.c + (28mm,0) = spre.c;
+drawboxed(argiii, argii, argi, more);
+drawunboxed(stackp);
+draw spre.nw--spost.sw;
+draw spre.ne--spost.se;
+%% symtab entry:
+boxit.empty(btex\strut etex); empty.dx=24pt;
+boxit.defn(btex\strut{\tt*defn}etex); defn.dy=8pt;
+empty.c = .5[mpre.c,fpre.c]-(0,36mm);
+defn.nw=empty.sw; defn.ne=empty.se;
+drawboxed(empty, defn);
+%% pointers and labels:
+label.top("Machine", mpre.n);
+label.top("Frame", fpre.n);
+label.top("Stack", spre.n);
+label.top(btex\vbox{\parindent=0pt\hsize=48pt
+  \parfillskip=0pt\baselineskip=10pt
+  \leftskip=2pt plus 8pt \rightskip=2pt plus 8pt
+  Symbol Table Entry}etex, empty.n);
+drawarrow mpc.e--mpsym.w;
+drawarrow fargn.e--argiii.w;
+drawarrow stackp.w -- 1.5[argiii.se,argiii.ne];
+drawarrow fretpc.w{left}..{left}1.5[mnargs.ne,mnargs.se];
+drawarrow mpsym.e{dir-40} .. {dir-40}empty.w;
+drawarrow fsp.w{dir220} .. {dir220}empty.e;
+drawarrow defn.w{left} .. {dir30}2[mnargs.nw,mnargs.sw];
+endfig;
+
 end
 

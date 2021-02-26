@@ -8,5 +8,5 @@ unixdev.pdf: unixdev.tex unixdev.mp
 	dvipdfm unixdev
 
 clean:
-	rm -f *.dvi *.log *.mps mpxerr.tex
+	rm -f *.dvi *.log *.mpx mpxerr.tex *.mps
 

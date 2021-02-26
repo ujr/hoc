@@ -1,0 +1,3 @@
+func stirl() {
+    return sqrt(2*$1*PI) * ($1/E)^$1*(1+1/(12*$1))
+}

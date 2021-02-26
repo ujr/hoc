@@ -26,6 +26,9 @@
   \noindent{\bf Exercise #1.\enspace}\ignorespaces}
 \def\endexercise{\unskip\kern.8ex$\sqcup\mkern-12mu\sqcap$\par\endgroup}
 
+\def\boxit#1{\vbox{\hrule\hbox{\vrule\kern6pt
+  \vbox{\kern6pt#1\kern3pt}\kern3pt\vrule}\hrule}}
+
 \def\begincode{\medbreak\begingroup\tt
   \obeylines\obeyspaces\frenchspacing
   \spaceskip=\ttglue \baselineskip=11pt plus.5pt
@@ -37,7 +40,7 @@
 \def\\{\char"5C\relax}% backslash in cmtt font
 \def\ocb{\char"7B\relax}% opening curly brace in cmtt
 \def\ccb{\char"7D\relax}% closing curly brace in cmtt
-
+\def\Ackermann{A\discretionary{k-}{k}{ck}er\-mann}%
 
 \topglue 0pc\noindent
 Excerpt from {\sl The UNIX Programming Environment}
@@ -2248,4 +2251,785 @@ then edit the file to make a trivial change. How would you modify
 placed in an editor with a copy of your {\tt hoc} program already
 read in? Hint: consider a {\tt text} opcode.\endexercise
 
+
+\section Stage 6: Functions and procedures; input/output
+
+The final stage in the evolution of {\tt hoc}, at least for this
+book, is a major increase in functionality: the addition of
+functions and procedures. We have also added the ability to print
+character strings as well as numbers, and to read values from the
+standard input. {\tt hoc6} also accepts filename arguments,
+including the name ``{\tt-}'' for the standard input.
+Together, these changes add 235 lines of code, bringing the total
+to about 810, but in effect convert {\tt hoc} from a calculator
+into a programming language. We won't show every line here;
+Appendix~3 is a listing of the entire program so you can see
+how the pieces fit together.
+
+In the grammar, function calls are expressions; procedure calls
+are statements. Both are explained in detail in Appendix~2 [the
+{\tt hoc} manual], which also has some more examples. For instance,
+the definition and use of a procedure for printing all the Fibonacci
+numbers less than its argument looks like this:
+
+\begincode
+$ cat fib
+proc fib() {
+~       a = 0
+~       b = 1
+~       while (b < $1) {
+~               print b
+~               c = b
+~               b = a+b
+~               a = c
+~       }
+~       print "\\n"
+}
+$ hoc6 fib -
+fib(1000)
+1 1 2 3 5 8 13 21 34 55 89 144 233 377 610 987
+...
+\endcode
+
+\noindent
+This also illustrates the use of files: the filename ``{\tt-}''
+is the standard input.
+
+Here is a factorial function:
+\begincode
+$ cat fac
+func fac() {
+~       if ($1 <= 0) return 1 else return $1 + fac($1-1)
+}
+$ hoc6 fac -
+fac(0)
+~       1
+fac(7)
+~       5040
+fac(10)
+~       3628800
+...
+\endcode
+
+\noindent
+Arguments are referenced within a function or procedure as {\tt\$1},
+etc., as in the shell, but it is legal to assign to them as well.
+Functions and procedures are recursive, but only the arguments are
+local variables; all other variables are global, that is, accessible
+throughout the program.
+
+{\tt hoc} distinguishes functions from procedures because doing so
+gives a level of checking that is valuable in a stack implementation.
+It is too easy to forget a {\tt return} or add an extra expression
+and foul up the stack.
+
+There are a fair number of changes to the grammar to convert {\tt hoc5}
+into {\tt hoc6}, but they are localized. New tokens and non-terminals
+are needed, and the {\tt\%union} declaration has a new member to hold
+argument counts:
+
+\begincode
+...
+%union {
+~       Symbol  *sym;   /* symbol table pointer */
+~       Inst    *inst;  /* machine instruction */
+~       int     narg;   /* number of arguments */
+}
+\smallbreak
+%token  <sym>   NUMBER STRING PRINT VAR BLTIN UNDEF WHILE IF ELSE
+%token  <sym>   FUNCTION PROCEDURE RETURN FUNC PROC READ
+%token  <narg>  ARG
+%type   <inst>  expr stmt asgn prlist stmtlist
+%type   <inst>  cond while if begin end
+%type   <sym>   procname
+%type   <narg>  arglist
+...
+\smallbreak
+list:     /* nothing */
+~       | list       '\\n'
+~       | list defn  '\\n'
+~       | list asgn  '\\n'  { code2(pop, STOP); return 1; }
+~       | list stmt  '\\n'  { code(STOP); return 1; }
+~       | list expr  '\\n'  { code2(print, STOP); return 1; }
+~       | list error '\\n'  { yyerrok; }
+~       ;
+\smallbreak
+asgn:     VAR '=' expr
+~                  { code3(varpush, (Inst)$1, assign); $$=$3; }
+~       | ARG '=' expr
+~                  { defnonly("$"); code2(argassign, (Inst)$1);
+~                    $$=$3; }
+~       ;
+\smallbreak
+stmt:     expr     { code(pop); }
+~       | RETURN   { defnonly("return"); code(procret); }
+~       | RETURN expr
+~                  { defnonly("return"); $$=$2; code(funcret); \rlap}
+~       | PROCEDURE begin '(' arglist ')'
+~                  { $$ = $2; code3(call, (Inst)$1, (Inst)$4); \rlap}
+~       | PRINT prlist  { $$ = $2; }
+...
+\smallbreak
+expr:     NUMBER  { $$ = code2(constpush, (Inst)$1); }
+~       | VAR     { $$ = code3(varpush, (Inst)$1, eval); }
+~       | ARG     { defnonly("$"); $$ = code2(arg, (Inst)$1); }
+~       | asgn
+~       | FUNCTION begin '(' arglist ')'
+~                 { $$ = $2; code3(call, (Inst)$1, (Inst)$4); }
+~       | READ '(' VAR ')'   { $$ = code2(varread, (Inst)$3); }
+...
+\smallskip
+begin:    /* nothing */      { $$ = progp; }
+~       ;
+\smallbreak
+prlist:   expr               { code(prexpr); }
+~       | STRING             { $$ = code2(prstr, (Inst)$1); }
+~       | prlist ',' expr    { code(prexpr); }
+~       | prlist ',' STRING  { code2(prstr, (Inst)$3); }
+~       ;
+\smallbreak
+defn:     FUNC procname { $2->type=FUNCTION; indef=1; }
+~          '(' ')' stmt { code(procret); define($2); indef=0; }
+~       | PROC procname { $2->type = PROCEDURE; indef=1; }
+~          '(' ')' stmt { code(procret); define($2); indef=0; }
+~       ;
+\smallbreak
+procname: VAR
+~       | FUNCTION
+~       | PROCEDURE
+~       ;
+\smallbreak
+arglist:  /* nothing */      { $$ = 0; }
+~       | expr               { $$ = 1; }
+~       | arglist ',' expr   { $$ = $1 + 1; }
+~       ;
+%%
+...
+\endcode
+
+\noindent
+The productions for {\tt arglist} count the arguments. At first
+sight it might seem necessary to collect arguments in some way,
+but it's not, because each {\tt expr} in an argument list leaves
+its value on the stack exactly where it's wanted. Knowing how
+many are on the stack is all that's needed.
+
+The rules for {\tt defn} introduce a new {\tt yacc} feature,
+an embedded action. It is possible to put an action in the middle
+of a rule so that it will be executed during the recognition
+of the rule. We use that feature here to record the fact that
+we are in a function or procedure definition. (The alternative
+is to create a new symbol analogous to {\tt begin}, to be
+recognized at the proper time.) The function {\tt defnonly}
+prints a warning message if a construct occurs outside of the
+definition of a function or procedure when it shouldn't.
+There is often a choice of whether to detect errors syntactically
+or semantically; we faced one earlier in handling undefined
+variables. The {\tt defnonly} function is a good example of a
+place where the semantic check is easier than the syntactic one.
+\begincode
+void defnonly(char *s)  /* warn if illegal definition */
+{
+~       if (!indef) execerror(s, "used outside definition");
+}
+\endcode
+\noindent
+The variable {\tt indef} is declared in {\tt hoc.y}, and set
+by the actions for {\tt defn}.
+
+The lexical analyzer is augmented by tests for arguments---a
+{\tt\$} followed by a number---and for quoted strings. Backslash
+sequences like {\tt\\n} are interpreted in strings by a function
+{\tt backslash}.
+
+\begincode
+int yylex(void)  /* hoc6 */
+...
+~     if (c == '$') {  /* argument? */
+~           int n = 0;
+~           while (isdigit(c = getc(fin)))
+~                 n = 10 * n + c - '0';
+~           ungetc(c, fin);
+~           if (n == 0)
+~                 execerror("strange $...", 0);
+~           yylval.narg = n;
+~           return ARG;
+~     }
+~     if (c == '"') {  /* quoted string */
+~           char sbuf[100], *p;
+~           for (p = sbuf; (c = getc(fin)) != '"'; p++) {
+~                 if (c == '\\n' || c == EOF)
+~                       execerror("missing quote", "");
+~                 if (p >= sbuf + sizeof(sbuf) - 1) {
+~                       *p = '\\0';
+~                       execerror("string too long", sbuf);
+~                 }
+~                 *p = backslash(c);
+~           }
+~           *p = 0;
+~           yylval.sym = emalloc(strlen(sbuf)+1);
+~           strcpy((char*)(void*) yylval.sym, sbuf);
+~           return STRING;
+~     }
+...
+\medbreak
+int backslash(int c)  /* get next char with \\'s interpreted */
+{
+~       static char transtab[] = "b\\bf\\fn\\nr\\rt\\t";
+~       if (c != '\\\\') return c;
+~       c = getc(fin);
+~       if (islower(c) && strchr(transtab, c))
+~              return strchr(transtab, c)[1];
+~       return c;
+}
+\endcode
+
+\goodbreak\noindent
+A lexical analyzer is an example of a {\it finite state machine},
+whether written in~C or with a program generator like {\tt lex}.
+Our {\it ad hoc\/} C version has grown fairly complicated; for
+anything beyond this, {\tt lex} is probably better, both in size
+of source code and ease of change.
+
+Most of the other changes are in {\tt code.c}, with some additions
+of function names to {\tt hoc.h}. The machine is the same as before,
+except that it has been augmented with a second stack to keep track
+of nested function and procedure calls. (A second stack is easier
+than piling more things into the existing one.)
+Here is the beginning of {\tt code.c}:
+
+\begincode
+#define NPROG   2000
+Inst    prog[NPROG];    /* the machine */
+Inst    *progp;         /* next free spot for code generation */
+Inst    *pc;            /* program counter during execution */
+Inst    *progbase = prog;  /* start of current subprogram */
+int     returning;      /* 1 if return stmt seen */
+\medbreak
+typedef struct Frame {  /* proc/func call stack frame */
+~       Symbol  *sp;    /* symbol table entry */
+~       Inst    *retpc; /* where to resume after return */
+~       Datum   *argn;  /* n-th argument on stack */
+~       int     nargs;  /* number of arguments */
+} Frame;
+\medbreak
+#define NFRAME  100
+Frame   frame[NFRAME];
+Frame   *fp;            /* frame pointer */
+\medbreak
+void initcode(void) {
+~       progp = progbase;
+~       stackp = stack;
+~       fp = frame;
+~       returning = 0;
+}
+...
+\endcode
+
+Since the symbol table now holds pointers to procedures and functions,
+and to strings for printing, an addition is made to the union type
+in {\tt hoc.h}:
+
+\begincode
+typedef struct Symbol {  /* symbol table entry */
+~       char    *name;
+~       short   type;
+~       union {
+~               double  val;         /* VAR */
+~               double  (*ptr)();    /* BLTIN */
+~               void    (**defn)();  /* FUNCTION, PROCEDURE */
+~               char    *str;        /* STRING */
+~       } u;
+~       struct Symbol *next;  /* to link to another */
+} Symbol;
+\endcode
+
+\noindent
+During compilation, a function is entered into the symbol table
+by {\tt define}, which stores its origin in the table and updates
+the next free location after the generated code if the compilation
+is successful.
+
+\begincode
+void define(Symbol *sp)  /* put func/proc in symbol table */
+{
+~       sp->u.defn = progbase;  /* start of code */
+~       progbase = progp;       /* next code starts here */
+}
+\endcode
+
+When a function or procedure is called during execution, any
+arguments have already been computed and pushed onto the stack
+(the first argument is the deepest). The opcode for {\tt call}
+is followed by the symbol table pointer and the number of
+arguments. A {\tt Frame} is stacked that contains all the
+interesting information about the routine---its entry in
+the symbol table, where to return after the call, where the
+arguments are on the expression stack, and the number of
+arguments that it was called with. The frame is created by
+{\tt call}, which then executes the code of the routine.
+
+\begincode
+void call(void)  /* call a function */
+{
+~       Symbol *sp = (Symbol *) pc[0];  /* symbol table entry */
+~                                       /* for function */
+~       if (fp++ >= &frame[NFRAME-1])
+~               execerror(sp->name, "call nested too deeply");
+~       fp->sp = sp;
+~       fp->nargs = (int) pc[1];
+~       fp->retpc = pc + 2;
+~       fp->argn = stackp - 1;  /* last argument */
+~       execute(sp->u.defn);
+~       returning = 0;
+}
+\endcode
+
+\goodbreak\noindent
+This structure is illustrated in the figure:
+\nobreak\medskip
+\centerline{\epsfbox{unixdev-5.mps}}
+\medbreak
+
+Eventually the called routine will return by executing either
+a {\tt procret} or a {\tt funcret}:
+\begincode
+void funcret(void)  /* return from a function */
+{
+~       Datum d;
+~       if (fp->sp->type == PROCEDURE)
+~           execerror(fp->sp->name, "(proc) returns value");
+~       d = pop();  /* preserve function return value */
+~       ret();
+~       push(d);
+}
+\medbreak
+void procret(void)  /* return from a procedure */
+{
+~       if (fp->sp->type == FUNCTION)
+~           execerror(fp->sp->name, "(func) returns no value");
+~       ret();
+}
+\endcode
+
+\noindent
+The function {\tt ret} pops the arguments off the stack, restores
+the frame pointer {\tt fp}, and sets the program counter.
+\begincode
+void ret(void)  /* common return from func or proc */
+{
+~       int i;
+~       for (i = 0; i < fp->nargs; i++)
+~               pop();  /* pop arguments */
+~       pc = (Inst *) fp->retpc;
+~       --fp;
+~       returning = 1;
+}
+\endcode
+
+Several of the interpreter routines need minor fiddling to handle
+the situation when a {\tt return} occurs in a nested statement.
+This is done inelegantly but adequately by a flag {\tt returning},
+which is true when a {\tt return} statement has been seen.
+{\tt ifcode}, {\tt whilecode} and {\tt execute} terminate early
+if {\tt returning} is set; {\tt call} resets it to zero.
+
+\begincode
+void ifcode(void)
+{
+~       Datum d;
+~       Inst *savepc = pc;     /* then part */
+\smallbreak
+~       execute(savepc+3);     /* condition */
+~       d = pop();
+~       if (d.val)
+~               execute(*((Inst **)(savepc)));
+~       else if (*((Inst **)(savepc+1))) /* else part? */
+~               execute(*((Inst **)(savepc+1)));
+~       if (!returning)
+~               pc = *((Inst **)(savepc+2)); /* next stmt */
+}
+\smallbreak
+void whilecode(void)
+{
+~       Datum d;
+~       Inst *savepc = pc;
+\smallbreak
+~       execute(savepc+2);     /* condition */
+~       d = pop();
+~       while (d.val) {
+~               execute(*((Inst **)(savepc)));  /* body */
+~               if (returning) break;
+~               execute(savepc+2);  /* condition */
+~               d = pop();
+~       }
+~       if (!returning)
+~               pc = *((Inst **)(savepc+1)); /* next stmt */
+}
+\smallbreak
+void execute(Inst *p)
+{
+~       for (pc = p; *pc != STOP && !returning; )
+~               (*(*pc++))();
+}
+\endcode
+
+Arguments are fetched for use or assignment by {\tt getarg},
+which does the correct arithmetic on the stack:
+\begincode
+double *getarg(void)  /* return pointer to argument */
+{
+~       int nargs = (int) *pc++;
+~       if (nargs > fp->nargs)
+~               execerror(fp->sp->name, "not enough arguments");
+~       return &fp->argn[nargs - fp->nargs].val;
+}
+\medbreak
+void arg(void)  /* push argument onto stack */
+{
+~       Datum d;
+~       d.val = *getarg();
+~       push(d);
+}
+\medbreak
+void argassign(void)  /* store top of stack in argument */
+{
+~       Datum d = pop();
+~       push(d);            /* leave value on stack */
+~       *getarg() = d.val;
+}
+\endcode
+\noindent
+Printing of strings and numbers is done by {\tt prstr}
+and {\tt prexpr}.
+\begincode
+void prstr(void)  /* print string value */
+{
+~       printf("%s", (char *) *pc++);
+}
+\medbreak
+void prexpr(void)  /* print numeric value */
+{
+~       Datum d = pop();
+~       printf("%.8g ", d.val);
+}
+\endcode
+
+Variables are read by a function called {\tt varread}.
+It returns {\tt 0} if end of file occurs; otherwise
+it returns {\tt 1} and sets the specified variable.
+
+\begincode
+void varread(void)  /* read into variable */
+{
+~       Datum d;
+~       extern FILE *fin;
+~       Symbol *var = (Symbol *) *pc++;
+Again:
+~       switch (fscanf(fin, "%lf", &var->u.val)) {
+~       case EOF:
+~               if (moreinput())
+~                       goto Again;
+~               d.val = var->u.val = 0.0;
+~               break;
+~       case 0:
+~               execerror("non-number read into", var->name);
+~               break;
+~       default:
+~               d.val = 1.0;
+~               break;
+~       }
+~       var->type = VAR;
+~       push(d);
+}
+\endcode
+
+\noindent
+If end of file occurs on the current input file, {\tt varread}
+calls {\tt moreinput}, which opens the next argument file if
+there is one. {\tt moreinput} reveals more about input processing
+than is appropriate here; full details are given in Appendix~3.
+
+This brings us to the end of our development of {\tt hoc}.
+For comparison purposes, here is the number of non-blank
+lines in each version:
+\smallskip
+\halign{\tabskip=2em\hskip\parindent\tt#\hfil&\hfil#&\quad#\hfil\cr
+hoc1& 59\cr
+hoc2& 94\cr
+hoc3& 248& ({\tt lex} version 229)\cr
+hoc4& 396\cr
+hoc5& 574\cr
+hoc6& 809\cr}
+\smallskip\noindent
+Of course the counts were computed by programs:
+\begincode
+$ sed '/^$/d' `pick *.[chyl]` | wc -l
+\endcode
+
+The language is by no means finished, at least in the sense that
+it's still easy to think of useful extensions, but we will go
+no further here. The following exercises suggest some of the
+enhancements that are likely to be of value.
+
+\exercise 8-18.
+Modify {\tt hoc6} to permit named formal parameters
+in subroutines as an alternative to {\tt\$1}, etc.\endexercise
+
+\exercise 8-19.
+As it stands, all variables are global except for parameters.
+Most of the mechanism for adding local variables maintained
+on the stack is already present. One approach is to have an
+{\tt auto} declaration that makes space on the stack for
+variables listed; variables not so named are assumed to be
+global.
+The symbol table will also have to be extended, so that a
+search is made first for locals, then for globals. How does
+this interact with named arguments?\endexercise
+
+\exercise 8-20.
+How would you add arrays to {\tt hoc}? How should they be
+passed to functions and procedures? How are they returned?
+\endexercise
+
+\exercise 8-21.
+Generalize string handling, so that variables can hold strings
+instead of numbers. What operators are needed? The hard part
+of this is storage management: making sure that strings are
+stored in such a way that they are freed when they are not
+needed, so that storage does not leak away. As an interim
+step, add better facilities for output formatting, for example,
+access to some form of the C {\tt printf} statement.\endexercise
+
+
+\section Performance evaluation
+
+We compared {\tt hoc} to some of the other {\sc UNIX} calculator
+programs, to get a rough idea of how well it works. The table
+below should be taken with a grain of salt, but it does indicate
+that our implementation is reasonable. All times are in seconds
+of user time on a {\sc PDP}-11/70. There were two tasks.
+The first is computing \Ackermann's function {\tt ack(3,3)}.
+This is a good test of the function-call mechanism; it requires
+2432 calls, some nested quite deeply.
+
+\begincode
+func ack() {
+~       if ($1 == 0) return $2+1
+~       if ($2 == 0) return ack($1-1, 1)
+~       return ack($1-1, ack($1, $2-1))
+}
+ack(3,3)
+\endcode
+
+\noindent The second test is computing the Fibonacci numbers with
+values less than 1000 a total of one hundred times; this involves
+mostly arithmetic with an occasional function call.
+
+\begincode
+proc fib() {
+~       a = 0
+~       b = 1
+~       while (b < $1) {
+~               c = b
+~               b = a+b
+~               a = c
+~       }
+}
+i = 1
+while (i < 100) {
+~       fib(1000)
+~       i = i + 1
+}
+\endcode
+
+The four languages were {\tt hoc}, {\tt bc}(1), {\tt bas} (an
+ancient {\sc BASIC} dialect that only runs on the {\sc PDP}-11),
+and~C (using {\tt double}'s for all variables).
+
+\goodbreak
+\topinsert
+\def\0{\phantom{0}}\tabskip=1em\offinterlineskip
+\def\breathe#1{&height#1pt&&height#1pt&\cr}%
+$$\boxit{\vbox{\halign{%
+ \hfil#\hfil&\vrule#&\hfil#\hfil&\vrule#&\hfil#\hfil\cr
+\multispan5{\bf Table 8.1:} Seconds of user time ({\sc PDP}-11/70)\cr
+\noalign{\smallskip}
+\noalign{\hrule}
+\breathe2
+ \strut program&& {\tt ack(3,3)}&& $100\times\hbox{\tt fib(1000)}$\cr
+\breathe2
+\noalign{\hrule}
+ \strut\tt hoc&& \05.5&& \05.0\cr
+ \strut\tt bas&& \01.3&& \00.7\cr
+ \strut\tt bc& &  39.7&&  14.9\cr
+ \strut C&     & \kern1ex\llap{$<$}0.1&& \kern1ex\llap{$<$}0.1\cr}}}$$
+\endinsert
+
+The nubmers in Table 8.1 are the sum of the user and system
+{\sc CPU} time as measured by {\tt time}(1). It is also possible
+to instrument a C~program to determine how much of that time
+each functoin uses. The program must be recompiled with profiling
+turned on, by adding the option {\tt-p} to each C compilation
+and load. If we modify the {\tt Makefile} to read
+\begincode
+hoc6: $(OBJS)
+~       cc $(CFLAGS) $(OBJS) -lm -o hoc6
+\endcode
+\noindent so that the {\tt cc} command uses the variable
+{\tt CFLAGS}, and then say
+\begincode
+$ make clean; make CFLAGS=-p
+\endcode
+\noindent the resulting program will contain the profiling code.
+When the program runs, it will leave a file called {\tt mon.out}
+of data that is interpreted by the program {\tt prof}.
+
+To illustrate these notions briefly, we made a test on {\tt hoc6}
+with the Fibonacci program above.
+
+\begincode
+$ hoc6 < fibtest                    \it Run the test\tt
+$ prof hoc6 | sed 15q               \it Analyze\tt
+~    name  %time  cumsecs  #call  ms/call
+~    _pop   15.6     0.85  32182   0.03
+~   _push   14.3     1.63  32182   0.02
+~  mcount   11.3     2.25
+~     csv   10.1     2.80
+~    cret    8.8     3.28
+~ _assign    8.2     3.73   5050   0.09
+~   _eval    8.2     4.18   8218   0.05
+~_execute    6.0     4.51   3567   0.09
+~_varpush    5.9     4.83  13268   0.02
+~     _lt    2.7     4.98   1783   0.08
+~_constpu    2.0     5.09    497   0.22
+~    _add    1.7     5.18   1683   0.05
+~ _getarg    1.5     5.26   1683   0.05
+~_yyparse    0.6     5.30      3  11.11
+$
+\endcode
+
+The measurements obtained from profiling are just as subject to
+chance fluctuations as are those from {\tt time}, so they should
+be treated as indicators, not absolute truth. The numbers here
+do suggest how to make {\tt hoc} faster, however, {\it if it needs
+to be}. About one third of the run time is going into pushing and
+popping the stack. The overhead is larger if we include the times
+for the C subroutine linkage functions {\tt csv} and {\tt cret}.
+({\tt mcount} is a piece of the profiling code compiled in by
+{\tt cc -p}.) Replacing the function calls by macros should make
+a noticeable difference.
+
+To test this expectation, we modified {\tt code.c}, replacing calls
+to {\tt push} and {\tt pop} with macros for stack manipulation:
+\begincode
+#define push(d) *stackp++ = (d)
+#define popm()  *--stackp        /* function still needed */
+\endcode
+\noindent (The function {\tt pop} is still needed as an opcode
+in the machine, so we can't just replace all {\tt pop}'s.)
+The new version runs about 35 percent faster; the times in
+Table~8.1 shrink form 5.5 to 3.7 seconds, and from 5.0 to 3.1.
+
+\exercise 8-22.
+The {\tt push} and {\tt popm} macros do no error checking.
+Comment on the wisdom of this design. How can you combine
+the error-checking provided by the function versions with
+the speed of macros?\endexercise
+
+
+\section A look back
+
+There are some important lessons to learn from this chapter.
+First, the language development tools are a boon. They make
+it possible to concentrate on the interesting part of the
+job---language design---because it is so easy to experiment.
+The use of a grammar also provides an organizing structure
+for the implementation---routines are linked together by
+the grammar, and called at the right times as parsing proceeds.
+
+A second, more philosophical point, is the value of thinking
+of the job at hand more as language development than as
+``writing a program.'' Organizing a program as a language
+processor encourages regularity of syntax (which is the
+user interface), and structures the implementation.
+It also helps to ensure that new features will mesh smoothly
+with existing ones. ``Languages'' are certainly not limited
+to conventional programming languages---examples from our
+own experience include {\tt eqn} and {\tt pic}, and {\tt yacc},
+{\tt lex} and {\tt make} themselves.
+
+There are also some lessons about how tools are used. For
+instance, {\tt make} is invaluable. It essentially eliminates
+the class of error that arises from forgetting to recompile
+some routine. It helps to ensure that no excess work is done.
+And it provides a convenient way to package a group of related
+and perhaps dependent operations in a single file.
+
+Header files are a good way to manage data declarations that
+must be visible in more than one file. By centralizing the
+information, they eliminate errors caused by inconsistent
+versions, especially when coupled with {\tt make}.
+It is also important to organize the data and the routines
+into files in such a way that they are not made visible when
+they don't have to be.
+
+There are a couple of topics that, for lack of space, we did
+not stress. One is simply the degree to which we used all the
+{\it other\/} {\sc UNIX} tools during development of the
+{\tt hoc} family. Each version of the program is in a separate
+directory, with identical files linked together; {\tt ls} and
+{\tt du} are used repeatedly to keep track of what is where.
+Many other questions are answered by programs. For example,
+where is that variable declared? Use {\tt grep}. What did
+we change in this version? Use {\tt diff}. How did we
+integrate the changes into that version? Use {\tt idiff}.
+How big is the file? Use {\tt wc}. Time to make a backup copy?
+Use {\tt cp}. How can we back up only the files changed
+since the last backup? Use {\tt make}. This general style
+is absolutely typical of day-to-day program development
+on a {\sc UNIX} system: a host of small tools, used
+separately or combined as necessary, help to mechanize
+work that would otherwise have to be done by hand.
+
+
+\section History and bibliographic notes
+
+{\tt yacc} was developed by Steven Johnson. Technically, the class
+of languages for which {\tt yacc} can generate parsers is called
+{\sc LALR}(1): left to right parsing, looking ahead at most one
+token in the input. The notion of a separate description to resolve
+precedence and ambiguity in the grammar is new with {\tt yacc}.
+See ``Deterministic parsing of ambiguous grammars,'' by
+A.~V.~Aho, S.~C.~Johnson, and J.~D.~Ullman, {\sl CACM},
+August, 1975. There are also some innovative algorithms and data
+structures for creating and storing the parsing tables.
+
+A good description of the basic theory underlying {\tt yacc} and
+other parser generators may be found in {\sl Principles of Compiler
+Design}, by A.~V.~Aho and J.~D.~Ullmann (Addison-Wesley, 1977).
+{\tt yacc} itself is described in Volume~2B of {\sl The UNIX
+Programmer's Manual}. That section also presents a calculator
+comparable to {\tt hoc2}; you might find it instructive to make
+the comparison.
+
+{\tt lex} was originally written by Mike Lesk. Again, the theory
+is described by Aho and Ullman, and the {\tt lex} language itself
+is documented in {\sl The UNIX Programmer's Manual}.
+
+{\tt yacc}, and to a lesser degree {\tt lex}, have been used to
+implement many language processors, including the portable C
+compiler, Pascal, {\sc FORTRAN}~77, Ratfor, {\tt awk}, {\tt bc},
+{\tt eqn}, and {\tt pic}.
+
+{\tt make} was written by Stu Feldman. See ``{\sc MAKE}---a program
+for maintaining computer programs,'' {\sl Software---Practice \&
+Experience}, April, 1979.
+
+{\sl Writing Efficient Programs\/} by Jon Bently (Prentice-Hall,
+1982) describes techniques for making programs faster. The emphasis
+is on first finding the right algorithm, then refining the code
+if necessary.
+
 \bye
+
