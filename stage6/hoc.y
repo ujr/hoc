@@ -381,7 +381,6 @@ int moreinput(void)
                         progname, infn, strerror(errno));
                 return moreinput();
         }
-fprintf(stderr, "{reading from %s}\n", infn ? infn : "(stdin)");
         lineno = 1;
         return 1;  /* more input */
 }

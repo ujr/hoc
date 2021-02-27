@@ -84,7 +84,7 @@ draw empty.n--list.s;
 draw xeqone.n--asgn.s;
 draw root.c--list.c cutbefore bpath root cutafter bpath list;
 draw root.c--asgn.c cutbefore bpath root cutafter bpath asgn;
-draw root.c{dir300}..{dir280}newline.c
+draw root.c{dir330}..{dir280}newline.c
   cutbefore bpath root cutafter bpath newline;
 endfig;
 

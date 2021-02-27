@@ -26,9 +26,6 @@
   \noindent{\bf Exercise #1.\enspace}\ignorespaces}
 \def\endexercise{\unskip\kern.8ex$\sqcup\mkern-12mu\sqcap$\par\endgroup}
 
-\def\boxit#1{\vbox{\hrule\hbox{\vrule\kern6pt
-  \vbox{\kern6pt#1\kern3pt}\kern3pt\vrule}\hrule}}
-
 \def\begincode{\medbreak\begingroup\tt
   \obeylines\obeyspaces\frenchspacing
   \spaceskip=\ttglue \baselineskip=11pt plus.5pt
@@ -139,7 +136,7 @@ This section describes the implementation of {\tt hoc1}, a program
 that provides about the same capabilities as a minimal pocket
 calculator. It has only four
 functions: {\tt+}, {\tt-}, {\tt*}, and {\tt/}, but it does have
-parentheses that can be nested arbirarily deeply, which few pocket
+parentheses that can be nested arbitrarily deeply, which few pocket
 calculators provide. If you type an expression followed by
 {\sc RETURN}, the anwer will be printed on the next line:
 
@@ -177,7 +174,7 @@ and simple in its abstract representation:
 \noindent
 In other words, a {\tt list} is a sequence of expressions, each
 followed by a newline. An expression is a number, or a pair of
-expressions joined by an operator, or a pharenthesized expression.
+expressions joined by an operator, or a parenthesized expression.
 
 This is not complete. Among other things, it does not specify
 the normal precedence and associativity of the operators, nor
@@ -188,13 +185,13 @@ These details have to be filled in to go from a sketch of the
 language to a working program.
 
 \subsect Overview of yacc.
-{\tt yacc} is a {\it parser generator},\footnote{$\dag$}{{\tt yacc}
-stands for ``yet another compiler-compiler,'' a comment by its
-creator, Steve Johnson, on the number of such programs extant
-at the time it was being developed (around 1972). {\tt yacc}
-is one of a handful that have flourished.} that is, a program
-for converting a grammatical specification of a language like
-the one above into a parser that will parse statements in the
+{\tt yacc} is a {\it parser generator},\footnote{$\dag$}{%
+\ninepoint{\tt yacc} stands for ``yet another compiler-compiler,''
+a comment by its creator, Steve Johnson, on the number of such
+programs extant at the time it was being developed (around 1972).
+{\tt yacc} is one of a handful that have flourished.} that is, a
+program for converting a grammatical specification of a language
+like the one above into a parser that will parse statements in the
 language. {\tt yacc} provides a way to associate meanings with
 the components of the grammar in such a way that as the parsing
 takes place, the meaning can be ``evaluated'' as well. The stages
@@ -232,7 +229,7 @@ input, and perform the semantic actions as each grammatical rule
 is recognized. The entry to the lexical analyzer must be named
 {\tt yylex}, since that is the function that {\tt yyparse} calls
 each time it wants another token. (All names used by {\tt yacc}
-start with~y.)
+start with~{\tt y}.)
 
 To be somewhat more precise, the input to {\tt yacc} takes
 this form:
@@ -293,6 +290,7 @@ but this convention is not enforced by {\tt yacc} itself, unlike
 %{
 #include <stdio.h>      \it includes needed for code later on\tt
 #include <ctype.h>
+\smallskip
 #define YYSTYPE double   /* data type of yacc stack */
 %}
 \smallbreak
@@ -349,7 +347,7 @@ the value of the result {\tt expr} is the sum of the values from
 the two component {\tt expr}'s. Notice that {\tt'+'} is {\tt\$2};
 every component is numbered.
 
-At the level above this, an expressoin followed by a newline
+At the level above this, an expression followed by a newline
 {\tt'\\n'} is recognized as a list and its value is printed.
 If the end of the input follows such a construction, the parsing
 process terminates cleanly. A {\tt list} can be an empty string;
@@ -363,12 +361,11 @@ complicated situations (including {\tt hoc4} and its successors),
 the parsing process generates code for later execution.
 
 You may find it helpful to visualize parsing as drawing a
-{\it parse tree\/} like the one in the figure, and to imaginge
+{\it parse tree\/} like the one in the figure, and to imagine
 values being computed and propagated up the tree from the leaves
-towards the root.
+towards the root. Here is the parse tree for {\tt 2 + 3 * 4}:
 \medskip
 \centerline{\epsfbox{unixdev-1.mps}}
-\centerline{Parse Tree for {\tt 2 + 3 * 4}}
 \medskip
 \noindent
 The values of incompletely-recognized rules are actually kept
@@ -398,11 +395,10 @@ declarations resolves the ambiguity.
 The rest of the code is the routines in the second half of the
 file {\tt hoc.y}:
 \begincode
-~                       \it Continuing\/\tt hoc.y
 char    *progname;       /* for error messages */
 int     lineno = 1;
 \medskip
-int main(int argc, char *argv[])   /* hoc1 */
+int main(int argc, char *argv[])  /* hoc1 */
 {
 ~       progname = argv[0];
 ~       yyparse();
@@ -427,8 +423,7 @@ Since the grammar expects to see only {\tt+}, {\tt-}, {\tt*},
 will cause {\tt yyparse} to report an error. Returning a {\tt0}
 signals ``end of file'' to {\tt yyparse}.
 \begincode
-~                       \it Continuing\/\tt hoc.y
-int yylex(void)          /* hoc1 */
+int yylex(void)  /* hoc1 */
 {
 ~       int c;
 \smallskip
@@ -554,8 +549,8 @@ specification without spelling out the individual steps.
 is large enough to be spread over several source files,
 but it's handy even for something as small as {\tt hoc1}.
 Here is the {\tt make} specification for {\tt hoc1}, which
-{\tt make} expects in a file called {\tt Makefile} or
-{\tt makefile}.
+{\tt make} expects in a file called {\tt makefile} [or
+{\tt Makefile}].
 \begincode
 hoc1: hoc.o
 ~       $(CC) $(CFLAGS) hoc.o -o hoc1
@@ -740,11 +735,13 @@ before {\tt yylex} returns. Here are the parts that have changed:
 \begincode
 int yylex(void)  /* hoc2 */
 ...
+\goodbreak
 ~       if (c == '.' || isdigit(c)) {  /* number */
 ~               ungetc(c, stdin);
 ~               scanf("%lf", &yylval.val);
 ~               return NUMBER;
 ~       }
+\goodbreak
 ~       if (islower(c)) {
 ~               yylval.index = c - 'a';  /* ASCII only */
 ~               return VAR;
@@ -1022,10 +1019,12 @@ in the grammar that make use of it. Here is {\tt hoc.y}:
 #include <stdio.h>
 extern double Pow();
 %}
+\smallbreak
 %union {
 ~       double  val;    /* actual value */
 ~       Symbol *sym;    /* symbol table pointer */
 }
+\smallbreak
 %token  <val>   NUMBER
 %token  <sym>   VAR BLTIN UNDEF
 %token  <val>   expr asgn
@@ -1034,6 +1033,7 @@ extern double Pow();
 %left   '*' '/'
 %left   UNARYPM
 %right  '^'     /* exponentiation */
+\smallbreak
 %%
 list:     /* nothing */
 ~       | list       '\\n'
@@ -1080,10 +1080,10 @@ its right associativity.
 The {\tt yacc} stack has a different {\tt\%union}: instead of
 referring to a variable by its index in a 26-element table,
 there is a pointer to an object of type {\tt Symbol}. The
-header file {\tt hoc.h} contains the definition of thi stype.
+header file {\tt hoc.h} contains the definition of this type.
 
 The lexical analyzer recognizes variable names, looks them up
-in the symbol table, an ddecides whether they are variables
+in the symbol table, and decides whether they are variables
 ({\tt VAR}) or built-ins ({\tt BLTIN}). The type returned by
 {\tt yylex} is one of these; both user-defined variables and
 pre-defined variables like {\tt PI} are {\tt VAR}'s.
@@ -1385,7 +1385,7 @@ $
 If a signle file is changed, the single command {\tt make} is
 enough to make an up-to-date version:
 \begincode
-$ touch lex.l               \it Change modified-time of \tt lex.l
+$ touch lex.l               \it Change modified-time of\/\tt lex.l
 $ make
 lex  lex.l
 cc  -c lex.yy.c
@@ -1508,7 +1508,7 @@ asgn:     VAR '=' expr   { code3(varpush, (Inst)$1, assign); }
 expr:     NUMBER         { code2(constpush, (Inst)$1); }
 ~       | VAR            { code3(varpush, (Inst)$1, eval); }
 ~       | asgn
-~       | BLTIN '(' expr ')' { code2(bltin, (void*)$1->u.ptr); }
+~       | BLTIN '(' expr ')' { code2(bltin, (void*)$1->u.ptr); \rlap}
 ~       | expr '+' expr  { code(add); }
 ~       | expr '-' expr  { code(sub); }
 ~       | expr '*' expr  { code(mul); }
@@ -1524,7 +1524,7 @@ expr:     NUMBER         { code2(constpush, (Inst)$1); }
 \endcode
 \noindent
 {\tt Inst} is the data type of a machine instruction (a pointer to
-a function returning an {\tt int}), which we will return to shortly.
+a function returning an {\tt void}), which we will return to shortly.
 Notice that the arguments to {\tt code} are function names, that is,
 pointers to functions, or other values that are coerced to function
 pointers.
@@ -1637,7 +1637,7 @@ static  Datum   stack[NSTACK];  /* the stack */
 static  Datum  *stackp;         /* next free spot on stack */
 \medbreak
 #define NPROG   2000
-static  Inst    prog[NPROG];    /* the machine */
+~       Inst    prog[NPROG];    /* the machine */
 static  Inst   *progp;          /* next free spot (code gen) */
 static  Inst   *pc;             /* program counter (runtime) */
 \medbreak
@@ -1749,14 +1749,14 @@ void eval(void)  /* evaluate variable on stack */
 \medbreak
 void assign(void)  /* assign to top var next value */
 {
-~       Datum d1 = pop();
-~       Datum d2 = pop();
-~       if (d1.sym->type != VAR && d1.sym->type != UNDEF)
+~       Datum v = pop();
+~       Datum x = pop();
+~       if (v.sym->type != VAR && v.sym->type != UNDEF)
 ~               execerror("assignment to non-variable",
-~                         d1.sym->name);
-~       d1.sym->u.val = d2.val;
-~       d1.sym->type = VAR;
-~       push(d2);  /* push back value because asgn is an expr */
+~                         v.sym->name);
+~       v.sym->u.val = x.val;
+~       v.sym->type = VAR;
+~       push(x);  /* push back value because asgn is an expr */
 }
 \medbreak
 void print(void)  /* pop top value from stack, print it */
@@ -1778,7 +1778,7 @@ The hardest part is the cast in {\tt bltin}, which says that
 {\tt*pc} should be cast to ``pointer to function returning a
 {\tt double},'' and that function executed with {\tt d.val}
 as argument. [The intermediate {\tt(void*)} cast silences
-a compiler warning because an {\tt Inst} returns {\tt int},
+a compiler warning because an {\tt Inst} returns {\tt void},
 not {\tt double}.]
 
 The diagnostics in {\tt eval} and {\tt assign} should never
@@ -2001,8 +2001,8 @@ mentioned in {\tt hoc3}.
 
 Notice that {\tt STOP} instructions are now generated in several
 places to terminate a sequence; as before, {\tt progp} is the
-locatoin of th enext instruction that will be generated. When
-executed those {\tt STOP} instructions will terminate the loop
+location of the next instruction that will be generated. When
+executed these {\tt STOP} instructions will terminate the loop
 in {\tt execute}. The production for {\tt end} is in effect a
 subroutine, called from several places, that generates a {\tt STOP}
 and returns the location of the instruction that follows it.
@@ -2041,7 +2041,7 @@ and the statement that follows the {\tt if}. We will return
 shortly to how this operates.
 
 \nobreak\medskip
-\centerline{\epsfbox{unixdev-4.mps}}
+\centerline{\hfil\hfil\epsfbox{unixdev-4.mps}\hfil}
 \medbreak
 
 Lexical analysis is somewhat longer this time, mainly to
@@ -2851,7 +2851,7 @@ and~C (using {\tt double}'s for all variables).
 \topinsert
 \def\0{\phantom{0}}\tabskip=1em\offinterlineskip
 \def\breathe#1{&height#1pt&&height#1pt&\cr}%
-$$\boxit{\vbox{\halign{%
+$$\vbox{\halign{%
  \hfil#\hfil&\vrule#&\hfil#\hfil&\vrule#&\hfil#\hfil\cr
 \multispan5{\bf Table 8.1:} Seconds of user time ({\sc PDP}-11/70)\cr
 \noalign{\smallskip}
@@ -2860,16 +2860,19 @@ $$\boxit{\vbox{\halign{%
  \strut program&& {\tt ack(3,3)}&& $100\times\hbox{\tt fib(1000)}$\cr
 \breathe2
 \noalign{\hrule}
+\breathe2
  \strut\tt hoc&& \05.5&& \05.0\cr
  \strut\tt bas&& \01.3&& \00.7\cr
  \strut\tt bc& &  39.7&&  14.9\cr
- \strut C&     & \kern1ex\llap{$<$}0.1&& \kern1ex\llap{$<$}0.1\cr}}}$$
+ \strut C&     & \kern1ex\llap{$<$}0.1&& \kern1ex\llap{$<$}0.1\cr
+\breathe1
+\noalign{\hrule}}}$$
 \endinsert
 
 The nubmers in Table 8.1 are the sum of the user and system
 {\sc CPU} time as measured by {\tt time}(1). It is also possible
 to instrument a C~program to determine how much of that time
-each functoin uses. The program must be recompiled with profiling
+each function uses. The program must be recompiled with profiling
 turned on, by adding the option {\tt-p} to each C compilation
 and load. If we modify the {\tt Makefile} to read
 \begincode
