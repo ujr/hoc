@@ -43,6 +43,10 @@ last result. At stage 3, the code for the production
 to `$`, at stage 4 and on it generates code that performs
 this assignment.
 
+Also at stage 3, add built-ins `rand()`, `atan2(y,x)`, and
+`mod(x,y)`, that is, built-ins of arity ≠ 1 (exercise 8-6).
+They are not carried over to stage 4.
+
 Starting with stage 4, the implementation puts literal numbers
 into the symbol table, where they accumulate. We could purge
 those from the symbol table every once in a while, or store them

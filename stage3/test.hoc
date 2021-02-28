@@ -9,3 +9,4 @@ sin(PI/2)
 atan(1)*DEG
 pi = 4*atan(1)
 2*pi
+atan2(sqrt(3), -1)*DEG

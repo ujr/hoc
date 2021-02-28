@@ -13,7 +13,7 @@ void yyerror(char *s);
         Symbol *sym;   /* symbol table pointer */
 }
 %token  <val>   NUMBER
-%token  <sym>   CONST VAR BLTIN UNDEF
+%token  <sym>   CONST VAR UNDEF BLTIN0 BLTIN1 BLTIN2
 %type   <val>   expr asgn
 %right  '='
 %left   '+' '-'        /* left associative, same precedence */
@@ -37,7 +37,9 @@ expr:     NUMBER         { $$ = $1; }
                                execerror("undefined variable", $1->name);
                            $$ = $1->u.val; }
         | asgn
-        | BLTIN '(' expr ')' { $$ = (*($1->u.ptr))($3); }
+        | BLTIN0 '(' ')'               { $$ = (*($1->u.ptr))(); }
+        | BLTIN1 '(' expr ')'          { $$ = (*($1->u.ptr))($3); }
+        | BLTIN2 '(' expr ',' expr ')' { $$ = (*($1->u.ptr))($3,$5); }
         | expr '+' expr  { $$ = $1 + $3; }
         | expr '-' expr  { $$ = $1 - $3; }
         | expr '*' expr  { $$ = $1 * $3; }
