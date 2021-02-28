@@ -15,6 +15,7 @@ void yyerror(char *s);
 void defnonly(char *s);
 Symbol  *prev;         /* previous result */
 Symbol  *debug;        /* debugging output */
+Symbol  *lineno;       /* current line number */
 static int plevel = 0; /* paren nesting level */
 static int blevel = 0; /* brace nesting level */
 static char *indef = 0;
@@ -169,7 +170,6 @@ arglist:  /* nothing */      { $$ = 0; }
 char    *progname;     /* for error messages */
 int      gargc;        /* global argument count */
 char   **gargv;        /* global argument list */
-int      lineno = 1;   /* line counter for current file */
 char    *infn;         /* current input file name (0 for stdin) */
 FILE    *infp;         /* current input file pointer */
 jmp_buf  begin;
@@ -202,7 +202,7 @@ int yylex(void)  /* hoc6, called from yyparse */
         int c;
         while ((c = getc(infp)) == ' ' || c == '\t' ||
                (c == '\n' && (plevel > 0 || blevel > 0)))
-                ;
+                if (c == '\n') lineno->u.val += 1;
         if (c == EOF)
                 return 0;  /* zero is EOF to yyparse */
         if (c == '.' || isdigit(c)) {  /* number */
@@ -265,7 +265,7 @@ int yylex(void)  /* hoc6, called from yyparse */
                 if (c == EOF) return 0;
         }
         if (c == '\n')
-                lineno++;
+                lineno->u.val += 1;
         switch (c) {
         case '>':   return follow('=', GE, GT);
         case '<':   return follow('=', LE, LT);
@@ -292,7 +292,7 @@ static void warning(const char *s, const char *t)  /* print warning message */
         fprintf(stderr, "%s: %s", progname, s);
         if (t) fprintf(stderr, " %s", t);
         if (infn) fprintf(stderr, " in %s", infn);
-        fprintf(stderr, " near line %d\n", lineno);
+        fprintf(stderr, " near line %d\n", (int) lineno->u.val);
 }
 
 void yyerror(char *s)  /* called for yacc syntax error */
@@ -359,6 +359,7 @@ int main(int argc, char *argv[])  /* hoc6 */
         init();
         prev = install("$", VAR, 0.0);
         debug = install("debug", VAR, 0.0);
+        lineno = install("lineno", CONST, 1.0);
 
         while (moreinput())
                 run();
@@ -381,7 +382,7 @@ int moreinput(void)
                         progname, infn, strerror(errno));
                 return moreinput();
         }
-        lineno = 1;
+        lineno->u.val = 1;
         return 1;  /* more input */
 }
 
