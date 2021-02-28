@@ -16,6 +16,7 @@ static struct {  /* Keywords */
   { "while",  WHILE  },
   { "print",  PRINT  },
   { "read",   READ   },
+  { "error",  ERROR  },
   { 0,        0      }
 };
 

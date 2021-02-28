@@ -288,6 +288,12 @@ void assign(void)  /* assign to top var next-to-top value */
         push(x);  /* push value because asgn is an expr */
 }
 
+void error(void)  /* trigger a runtime error */
+{
+        char *s = (char *) *pc++;
+        execerror(s ? s : "runtime error", 0);
+}
+
 void print(void)  /* pop top value from stack, print it */
 {
         Datum d = pop();

@@ -63,3 +63,9 @@ At stage 6, the command `syms` dumps the symbol table to
 stderr, and when the variable `debug` has a positive value,
 the code generated at func/proc definition time and prior
 to interactive execution will be dumped to stderr.
+
+The statement `error "msg"` triggers a runtime error
+and might be useful in user-defined functions. For example,
+[samples/atan2.hoc](samples/atan2.hoc) defines `atan2(y,x)`
+in terms of `atan(y/x)` and runs some tests. When `y=x=0`
+the result is undefined and `atan2` invokes `error`.

@@ -1,0 +1,28 @@
+# atan2(y,x) = arctan(y/x), but using the signs of y,x to
+# determine the quadrant and return the result in [-pi,pi]
+
+func atan2() { # $1 is dy, $2 is dx
+  if ($2 > 0) return atan($1/$2)
+  if ($2 < 0) {
+    if ($1 >= 0) return atan($1/$2)+PI else return atan($1/$2)-PI
+  }
+  # here dx=$2 is 0, so atan is plus or minus PI/2
+  if ($1 > 0) return PI/2
+  if ($1 < 0) return -PI/2
+  error "atan2: bad domain"  # atan2(0,0) is undefined
+}
+
+# try each quadrant:
+atan2( 1, 1)*DEG  # expect 45
+atan2( 1,-1)*DEG  # expect 135
+atan2(-1,-1)*DEG  # expect -135
+atan2(-1, 1)*DEG  # expect -45
+
+# try on the axes:
+atan2(0, 1)*DEG  # expect 0
+atan2(0,-1)*DEG  # expect 180
+atan2( 1,0)*DEG  # expect 90
+atan2(-1,0)*DEG  # expect -90
+
+# this is undefined:
+atan2(0,0)  # expect error

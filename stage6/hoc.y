@@ -28,7 +28,7 @@ static char *indef = 0;
 }
 
 %token  <sym>   NUMBER STRING CONST VAR BLTIN UNDEF READ PRINT SYMS
-%token  <sym>   WHILE IF ELSE FUNCTION PROCEDURE RETURN FUNC PROC
+%token  <sym>   WHILE IF ELSE FUNCTION PROCEDURE RETURN FUNC PROC ERROR
 %token  <narg>  ARG
 
 %type   <inst>  expr stmt asgn prlist stmtlist
@@ -73,6 +73,7 @@ stmt:     expr               { code1(drop); }
         | PROCEDURE begin '(' arglist ')'
                              { $$=$2; code3(call, (Inst)$1, (Inst)(intptr_t)$4); }
         | PRINT prlist       { $$ = $2; }
+        | ERROR STRING       { $$ = code2(error, (Inst) $2); }
         | while cond stmt end {
                 ($1)[1] = (Inst)$3;        /* body of loop */
                 ($1)[2] = (Inst)$4; }      /* end, if cond fails */

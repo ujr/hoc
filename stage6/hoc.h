@@ -43,7 +43,7 @@ extern Inst prog[], *progp, *progbase;
 extern void constpush(), varpush(), swap(), dup(), drop();
 extern void add(), sub(), mul(), divide(), power(), negate();
 extern void eval(), assign(), bltin(), print(), prexpr(), prstr();
-extern void ifcode(), whilecode(), varread();
+extern void ifcode(), whilecode(), varread(), error();
 extern void eq(), ne(), gt(), ge(), lt(), le();
 extern void land(), lor(), lnot();
 extern void preincr(), postincr(), predecr(), postdecr();
