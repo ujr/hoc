@@ -2,7 +2,7 @@
 #include "y.tab.h"
 #include <math.h>
 
-extern double Log(), Log10(), Exp(), Sqrt(), integer();
+extern double Log(), Log10(), Exp(), Sqrt(), integer(), Mod(), Pow(), Rand();
 
 static struct {  /* Keywords */
   char *name;
@@ -34,18 +34,22 @@ static struct {  /* Constants */
 
 static struct {  /* Built-ins */
   char *name;
+  int arity;
   double (*func)();
 } builtins[] = {
-  { "sin",   sin     },
-  { "cos",   cos     },
-  { "atan",  atan    },
-  { "log",   Log     },  /* checks argument */
-  { "log10", Log10   },  /* checks argument */
-  { "exp",   Exp     },  /* checks argument */
-  { "sqrt",  Sqrt    },  /* checks argument */
-  { "int",   integer },
-  { "abs",   fabs    },
-  { 0, 0 }
+  { "sin",   1, sin     },
+  { "cos",   1, cos     },
+  { "atan",  1, atan    },
+  { "log",   1, Log     },  /* checks argument */
+  { "log10", 1, Log10   },  /* checks argument */
+  { "exp",   1, Exp     },  /* checks argument */
+  { "sqrt",  1, Sqrt    },  /* checks argument */
+  { "int",   1, integer },
+  { "abs",   1, fabs    },
+  { "mod",   2, Mod     },  /* checks argument */
+  { "pow",   2, Pow     },
+  { "rand",  0, Rand    },
+  { 0,       0, 0       }
 };
 
 void init(void)  /* install constants and built-ins in symtab */
@@ -59,6 +63,7 @@ void init(void)  /* install constants and built-ins in symtab */
     install(consts[i].name, CONST, consts[i].cval);
   for (i = 0; builtins[i].name; i++) {
     sp = install(builtins[i].name, BLTIN, 0.0);
+    sp->arity = builtins[i].arity;
     sp->u.ptr = builtins[i].func;
   }
 }

@@ -1,6 +1,7 @@
 struct Symbol {            /* symbol table entry */
   char *name;
   short type;              /* VAR, BLTIN, UNDEF */
+  short arity;             /* for BLTIN */
   union {
     double val;            /* VAR */
     double (*ptr)();       /* BLTIN */

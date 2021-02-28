@@ -313,9 +313,31 @@ void prstr(void)  /* print string value */
 
 void bltin(void)  /* evaluate built-in on top of stack */
 {
-        Datum d = pop();
-        d.val = (*(double (*)())(void*)(*pc++))(d.val);
-        push(d);
+        double r;
+        Datum d1, d2;
+        int nargs = (intptr_t) *pc++;
+        Symbol *sp = (Symbol *) *pc++;
+        double (*f)() = sp->u.ptr;
+        if (nargs != sp->arity) {
+                while (nargs-- > 0) pop();
+                execerror("arity mismatch for", sp->name);
+        }
+        switch (nargs) {
+        case 0: r = (*f)();
+                break;
+        case 1: d1 = pop();
+                r = (*f)(d1.val);
+                break;
+        case 2: d2 = pop(); d1 = pop();
+                r = (*f)(d1.val, d2.val);
+                break;
+        default:
+                while (nargs-- > 0) pop();
+                execerror("arity not supported", 0);
+                break;
+        }
+        d1.val = r;
+        push(d1);
 }
 
 void whilecode(void)

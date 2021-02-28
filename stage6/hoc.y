@@ -70,8 +70,8 @@ asgn:     VAR '=' expr       { $$=$3; code3(varpush, (Inst) $1, assign); }
 stmt:     expr               { code1(drop); }
         | RETURN             { defnonly("return"); code1(procret); }
         | RETURN expr        { defnonly("return"); $$=$2; code1(funcret); }
-        | PROCEDURE begin '(' arglist ')'
-                             { $$=$2; code3(call, (Inst)$1, (Inst)(intptr_t)$4); }
+        | PROCEDURE begin '(' arglist ')'  { $$=$2;
+                               code3(call, (Inst)$1, (Inst)(intptr_t)$4); }
         | PRINT prlist       { $$ = $2; }
         | ERROR STRING       { $$ = code2(error, (Inst) $2); }
         | while cond stmt end {
@@ -119,7 +119,9 @@ expr:     NUMBER             { $$ = code2(constpush, (Inst) $1); }
         | VAR INCR           { $$ = code3(varpush, (Inst) $1, postincr); }
         | VAR DECR           { $$ = code3(varpush, (Inst) $1, postdecr); }
 
-        | BLTIN '(' expr ')' { $$ = $3; code2(bltin, (void*) $1->u.ptr); }
+        | BLTIN begin '(' arglist ')'
+                             { $$ = $2;
+                               code3(bltin, (Inst)(intptr_t) $4, (void*) $1); }
         | '(' expr ')'       { $$ = $2; }
 
         | expr '+' expr      { code1(add); }
